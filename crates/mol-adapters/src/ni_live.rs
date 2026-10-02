@@ -1,9 +1,11 @@
-//! In-crate live NI / WCA / EFA certify path.
+//! In-crate live NI / WCA / EFA certify path (default / fallback).
 //!
 //! Issues real certificate ids and commit|refuse receipts. Not soft-ref-only
 //! heuristics without provenance: every allow stamps `certificate_id`s that
-//! bind the irreversible act. FPGA Stage C / Ferric hardware meters stay
-//! `measured_j=None`, `board_synth_claimed=false`.
+//! bind the irreversible act. Optional live HTTP/MCP is in [`crate::ni_http`];
+//! close prefers env when set and falls back here. FPGA Stage C / Ferric
+//! hardware meters stay `measured_j=None`, `board_synth_claimed=false`,
+//! `stage_c_measured=false`.
 
 use mol_core::{Floor, FloorKind, Result, BOARD_SYNTH_CLAIMED};
 use serde::{Deserialize, Serialize};
@@ -11,6 +13,33 @@ use uuid::Uuid;
 
 use crate::efa::{EfaCertResult, EfaCertificatePort, EfaDecision, EfaProposal, StubEfaCertificate};
 use crate::wca::{StubWcaCommit, WcaCertResult, WcaCommitPort};
+
+/// Where the NI certificate was obtained.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum CertifySource {
+    /// Default in-crate EFA+WCA software-reference path.
+    #[default]
+    InCrate,
+    /// Live HTTP POST `/v1/certify`.
+    Http,
+    /// Live MCP-shaped JSON-RPC `tools/call`.
+    Mcp,
+    /// Live endpoint configured but failed; fell back to in-crate.
+    InCrateFallback,
+}
+
+impl std::fmt::Display for CertifySource {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::InCrate => write!(f, "in_crate"),
+            Self::Http => write!(f, "http"),
+            Self::Mcp => write!(f, "mcp"),
+            Self::InCrateFallback => write!(f, "in_crate_fallback"),
+        }
+    }
+}
+
 
 /// One NI certificate with durable id (commit gate provenance).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -31,6 +60,9 @@ pub struct NiCertificate {
     pub stage_c_measured: bool,
     /// Estimated certify joules (catalog surrogate).
     pub estimated_j: f64,
+    /// Provenance of this certificate (in-crate / http / mcp / fallback).
+    #[serde(default)]
+    pub source: CertifySource,
 }
 
 impl NiCertificate {
@@ -57,8 +89,10 @@ pub struct LiveCertOutcome {
 /// In-crate NI certify path — real commit/refuse/receipt with certificate ids.
 ///
 /// Uses software-reference EFA+WCA logic but **mints durable certificate ids**
-/// and a unified NI receipt. Optional MCP/Ferric features remain deferred;
-/// this path is the proven live-in-crate certify (not soft-ref-only).
+/// and a unified NI receipt. Live HTTP/MCP is optional via env
+/// (`MOL_NI_CERTIFY_URL` / `MOL_WCA_CERTIFY_URL`); this path is the default
+/// and the fallback when live is unset or fails. Ferric / FPGA Stage C meters
+/// remain stubs (`stage_c_measured=false`).
 #[derive(Debug, Default, Clone)]
 pub struct InCrateNiCertify {
     efa: StubEfaCertificate,
@@ -107,6 +141,7 @@ impl InCrateNiCertify {
                 board_synth_claimed: BOARD_SYNTH_CLAIMED,
                 stage_c_measured: false,
                 estimated_j: efa_res.estimated_j,
+                source: CertifySource::InCrate,
             };
             // Still run WCA for receipt completeness (decision already refuse).
             let wca_res = self.wca.certify(summary, estimated_j)?;
@@ -132,6 +167,7 @@ impl InCrateNiCertify {
                 board_synth_claimed: BOARD_SYNTH_CLAIMED,
                 stage_c_measured: false,
                 estimated_j,
+                source: CertifySource::InCrate,
             };
             return Ok(LiveCertOutcome {
                 ni,
@@ -153,6 +189,7 @@ impl InCrateNiCertify {
             board_synth_claimed: BOARD_SYNTH_CLAIMED,
             stage_c_measured: false,
             estimated_j,
+            source: CertifySource::InCrate,
         };
         Ok(LiveCertOutcome {
             ni,
@@ -196,6 +233,7 @@ mod tests {
         assert!(out.ni.wca_id.starts_with("wca:"));
         assert!(!out.ni.board_synth_claimed);
         assert!(!out.ni.stage_c_measured);
+        assert_eq!(out.ni.source, CertifySource::InCrate);
     }
 
     #[test]

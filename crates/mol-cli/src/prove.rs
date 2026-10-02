@@ -3,7 +3,7 @@
 //! Does not path-depend on openie-leapfrog / jouledb / wca-lut-edge.
 //! Prints VERIFIED (or FAIL) for each criterion; exits 0 iff all pass.
 
-use mol_adapters::InCrateNiCertify;
+use mol_adapters::{certify_live_prefer_env, CertifySource, InCrateNiCertify};
 use mol_automate::{Act, ActKind, AgentLoop, AutomateGate, Capability, CapabilitySet, CommitDecision, EcosystemCertify, EcosystemCertifyConfig};
 use mol_cascade::{distill_certified_model_last, DistillStore, ResidualModelAdapter};
 use mol_core::{
@@ -185,6 +185,7 @@ pub fn run_prove() -> bool {
 
     // Product gaps A7–A13 (live NI, residual LAST, episode, bench labels, phase1, distill, meters)
     results.push(criterion_product_a7_live_ni_cert());
+    results.push(criterion_product_a7b_http_mcp_fallback());
     results.push(criterion_product_a8_residual_model_last());
     results.push(criterion_product_a9_episode_cz());
     results.push(criterion_product_a10_bench_labels());
@@ -209,8 +210,8 @@ pub fn run_prove() -> bool {
         let failed = results.iter().filter(|c| !c.ok).count();
         println!("PROVE RESULT: FAILED ({failed}/{})", results.len());
     }
-    println!("OUT OF PROOF SCOPE: Ferric/MuJoCo robot EFA hardware, WCA MCP network, klere-vm FPGA Stage C package meters (stage_c_measured=false), full 258 live catalog, live nvidia-smi on hosts without NVIDIA (feature energy-meter still honest-unavailable)");
-    println!("IN PROOF (product gaps): in-crate live NI cert ids, Residual Model LAST, durable EpisodeStore C(z), mol bench Estimated|Metered, mol arena head-on, phase1 rule AST, distill v1, Tier-1 RAPL/NVML/macOS-SMC meter honesty + Tier-2 StubShuntHal");
+    println!("OUT OF PROOF SCOPE: Ferric/MuJoCo robot EFA hardware, FPGA Stage C / wca-lut-edge in-proc + board meters (stage_c_measured=false), klere-vm package meters, System One pre-gate, full 258 live catalog, live nvidia-smi on hosts without NVIDIA (feature energy-meter still honest-unavailable). Live NI/WCA HTTP|MCP certify is in-tree (env-gated; in-crate fallback).");
+    println!("IN PROOF (product gaps): live NI cert ids (in-crate + HTTP|MCP prefer_env fallback), Residual Model LAST, durable EpisodeStore C(z), mol bench Estimated|Metered, mol arena head-on, phase1 rule AST, distill v1, Tier-1 RAPL/NVML/macOS-SMC meter honesty + Tier-2 StubShuntHal");
     all_ok
 }
 
@@ -3066,7 +3067,80 @@ fn criterion_product_a7_live_ni_cert() -> Criterion {
     }
     Criterion::verified(
         name,
-        "A7: live in-crate NI/WCA/EFA certify mints ids; commit|refuse; Stage C unmetered",
+        "A7: live in-crate NI/WCA/EFA certify mints ids; commit|refuse; Stage C/Ferric unmetered stub",
+    )
+}
+
+fn criterion_product_a7b_http_mcp_fallback() -> Criterion {
+    let name = "product_a7b_http_mcp_ni_cert_fallback";
+    // 1) No env → in-crate source.
+    // SAFETY: prove harness is single-threaded for this criterion's env mutations.
+    unsafe {
+        std::env::remove_var("MOL_NI_CERTIFY_URL");
+        std::env::remove_var("MOL_WCA_CERTIFY_URL");
+    }
+    let out = match certify_live_prefer_env("convert 1 celsius", 1e-9, None, None) {
+        Ok(o) => o,
+        Err(e) => return Criterion::fail(name, format!("prefer_env in-crate: {e}")),
+    };
+    if out.ni.source != CertifySource::InCrate || !out.ni.allows_commit() {
+        return Criterion::fail(
+            name,
+            format!("expected InCrate commit, got source={:?} decision={}", out.ni.source, out.ni.decision),
+        );
+    }
+    if out.ni.stage_c_measured || out.ni.board_synth_claimed {
+        return Criterion::fail(name, "Ferric/FPGA Stage C must stay unmetered stub");
+    }
+
+    // 2) Bad live URL + fallback → InCrateFallback; never invent measured_j.
+    unsafe {
+        std::env::set_var("MOL_NI_CERTIFY_URL", "http://127.0.0.1:1");
+        std::env::set_var("MOL_CERTIFY_FALLBACK", "1");
+        std::env::set_var("MOL_CERTIFY_TIMEOUT_MS", "200");
+    }
+    let out = match certify_live_prefer_env("convert 1 celsius", 1e-9, None, None) {
+        Ok(o) => o,
+        Err(e) => {
+            unsafe {
+                std::env::remove_var("MOL_NI_CERTIFY_URL");
+                std::env::remove_var("MOL_CERTIFY_FALLBACK");
+                std::env::remove_var("MOL_CERTIFY_TIMEOUT_MS");
+            }
+            return Criterion::fail(name, format!("fallback path: {e}"));
+        }
+    };
+    unsafe {
+        std::env::remove_var("MOL_NI_CERTIFY_URL");
+        std::env::remove_var("MOL_CERTIFY_FALLBACK");
+        std::env::remove_var("MOL_CERTIFY_TIMEOUT_MS");
+    }
+    if out.ni.source != CertifySource::InCrateFallback {
+        return Criterion::fail(name, format!("expected InCrateFallback, got {:?}", out.ni.source));
+    }
+    if !out.ni.allows_commit() || out.ni.stage_c_measured {
+        return Criterion::fail(name, "fallback must commit with stage_c_measured=false");
+    }
+
+    // 3) Close path still stamps certificate ids with no live URL.
+    let mol = MixtureOfLimits::new();
+    let closed = match mol.close(&MolRequest::new(
+        "convert 100 celsius to fahrenheit",
+        Budget::coin_cell(),
+    )) {
+        Ok(o) => o,
+        Err(e) => return Criterion::fail(name, format!("close: {e}")),
+    };
+    if !closed.is_commit() || closed.receipt().certificate_ids.len() < 3 {
+        return Criterion::fail(name, "close must stamp ni/efa/wca ids under prefer_env default");
+    }
+    if closed.receipt().measured_j.is_some() {
+        return Criterion::fail(name, "measured_j only when metered — soft-ref must be None");
+    }
+
+    Criterion::verified(
+        name,
+        "A7b: HTTP/MCP env-gated NI certify; in-crate fallback; Ferric/FPGA stub; measured_j=None",
     )
 }
 

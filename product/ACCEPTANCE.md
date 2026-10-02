@@ -73,14 +73,15 @@ Physics-informed acceptance. Soft-ref proves constructive existence; these tests
 
 **Prove bridge:** OS meter honesty (PLAN P20); soft-ref prove keeps `measured_j=None`.
 
-## A7 — Live in-crate NI/WCA/EFA certify
+## A7 — Live NI/WCA/EFA certify (HTTP|MCP or in-crate)
 
 | Field | Value |
 |---|---|
-| Given | Close path uses `InCrateNiCertify` (not soft-ref-only without ids) |
+| Given | Close uses `certify_live_prefer_env` (HTTP/MCP when `MOL_NI_CERTIFY_URL` / `MOL_WCA_CERTIFY_URL` set; else `InCrateNiCertify`) |
 | When | Proposal certified allow / diverge refuse |
-| Then | Receipt stamps `certificate_ids` (`ni:`/`efa:`/`wca:`); commit\|refuse |
-| And | FPGA Stage C stays `stage_c_measured=false`; `board_synth_claimed=false` |
+| Then | Receipt stamps `certificate_ids` (`ni:`/`efa:`/`wca:`); commit\|refuse; `source` ∈ {in_crate, http, mcp, in_crate_fallback} |
+| And | FPGA Stage C / Ferric stay stubs: `stage_c_measured=false`; `board_synth_claimed=false`; `measured_j` only when metered |
+| And | Live transport failure + default fallback → in-crate (A7b); prove stays green offline |
 
 ## A8 — Residual Model LAST leaf
 
@@ -152,7 +153,7 @@ Physics-informed acceptance. Soft-ref proves constructive existence; these tests
 | A4 | NI cert gate on ModelGenerated |
 | A5 | estimated_j always |
 | A6 | measured_j honesty |
-| A7 | Live in-crate NI certify + certificate ids |
+| A7 / A7b | Live NI certify (HTTP\|MCP\|in-crate fallback) + certificate ids; Ferric/FPGA stub |
 | A8 | Residual Model LAST + cert gate |
 | A9 | Durable EpisodeStore C(z) |
 | A10 | `mol bench` Estimated\|Metered only |

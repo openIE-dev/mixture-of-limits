@@ -65,7 +65,7 @@ Scaffold: crate `mol-desktop` — headless `ShellSession` always; optional `--fe
 | Fake RAPL / NVML / inventing `measured_j` | Honesty invariant; software-ref always `measured_j=None` |
 | MoE chase (more in-model experts) | MoL is navigation law over floors, not generative corridor capacity |
 | ARC-AGI (or similar) as yardstick | Success = closed grammar + certified commit + receipt honesty |
-| Live silicon / Ferric / klere-vm FPGA / WCA MCP | Roadmap residual — **OUT OF PROOF SCOPE** |
+| Live silicon / Ferric / klere-vm FPGA / Stage C board meter | Roadmap residual — **OUT OF PROOF SCOPE** (HTTP/MCP NI certify is in-tree, env-gated) |
 | Path-depending on sibling workspaces for the proof | Adapters stay documented ports; prove path is in-tree |
 
 ---
@@ -106,7 +106,7 @@ sense → classify grammar → MixtureOfLimits floors
 | `mol-cascade` | GrammarCoverage; Lookup / Formula / **Z2 ClaimRetrieve** / **Z1 ClaimCompose** (Composed+`composed_from`; refuse `compose_missing`) / Solver+`TernarySettle` / Model stub; `CascadeEngine` | Formula/lookup/settle/cite/compose without model |
 | `mol-limits` | Named registry; `MixtureOfLimits::route` + `::close`; `primitive_gap` ← stack probe; **memory write-on-COMMIT** | Deterministic close; VoI; certificate refuse; gap refuse; bitemporal commit |
 | `mol-automate` | Act / CapabilitySet / `AutomateGate`; **`AgentMailbox` + `AgentLoop`**; **`EcosystemCertify`** (Agent Lane + fabric + WASM + GrantReceipt → one receipt); **memory write requires Mutate**; `run_memory_demo` | Capability default-deny mutate; agent-loop; bitemporal memory gate; ecosystem e2e certify |
-| `mol-adapters` | Documented ports: openie / wca / jouledb / efa / klere (**software-ref stubs**) | EFA cert + Klere settle logic in-tree |
+| `mol-adapters` | Ports: openie / wca / jouledb / efa / klere + **HttpNiCertify** (HTTP\|MCP) + `InCrateNiCertify` fallback | Live NI certify env-gated; Ferric/FPGA stub; EFA+Klere in-tree |
 | `mol-cli` | `mol` binary: ask, explain-cascade, limits, receipt-verify, demo, **`agent`**, **`memory`**, **`fabric`**, **`meter`**, **`ecosystem-certify`**, **`replay`**, **`prove`** | `mol prove` exits 0; `mol agent`; `mol memory`; `mol fabric`; `mol meter`; `mol ecosystem-certify`; `mol replay` |
 | `mol-desktop` | Energy harness shell: `ShellSession` ask/close, fabric, joule ledger, transcript; optional egui `gui` | Headless shell API in prove (P19); GUI optional |
 
@@ -159,7 +159,7 @@ Clearly marked; must **not** block `mol prove`:
 - Ferric / on-device EFA certificate (BMI hardware loop) — Ferric tree is reference only; see §1b
 - klere-vm WASM / FPGA meter (real pJ/accumulate)
 - Live `openie-path` ask bridge / leapfrog runtime
-- Live WCA MCP / in-proc certify against `wca-lut-edge`
+- Live WCA **in-proc** path-dep against `wca-lut-edge` (HTTP/MCP env certify **shipped**; FPGA Stage C meter still stub)
 - Full Periodic Stack 258 live catalog / μ **calib corpus** (in-tree **subset** navigator + Gap probes + **tier μ catalog** `mu_source=catalog` are **in proof**)
 - Trained weights / candle / tract model leaf (Model stays demoted stub)
 

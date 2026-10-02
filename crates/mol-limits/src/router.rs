@@ -1,8 +1,7 @@
 //! MixtureOfLimits router — owns close end-to-end when paired with certify.
 
 use mol_adapters::{
-    EfaCertificatePort, EfaDecision, EfaProposal, InCrateNiCertify,
-    WcaCommitPort,
+    certify_live_prefer_env, EfaCertificatePort, EfaDecision, EfaProposal, WcaCommitPort,
 };
 use mol_cascade::{CascadeEngine, CascadeResult, DistillStore, ModelStub};
 use std::sync::Mutex;
@@ -409,15 +408,16 @@ impl MixtureOfLimits {
         }
     }
 
-    /// Own close end-to-end: route → live in-crate NI/EFA/WCA certify → commit|refuse → receipt.
+    /// Own close end-to-end: route → live NI/EFA/WCA certify → commit|refuse → receipt.
     ///
-    /// Uses [`InCrateNiCertify`] (real certificate ids + commit|refuse receipt).
-    /// Never fakes RAPL; `board_synth_claimed=false`; FPGA Stage C stays unmetered.
+    /// Prefers env-gated HTTP/MCP (`MOL_NI_CERTIFY_URL` / `MOL_WCA_CERTIFY_URL`);
+    /// falls back to [`mol_adapters::InCrateNiCertify`]. Never invents `measured_j`; 
+    /// `board_synth_claimed=false`; FPGA Stage C / Ferric stay unmetered stubs.
     pub fn close(&self, req: &MolRequest) -> Result<CloseOutcome> {
         self.close_live(req)
     }
 
-    /// Live in-crate NI certify path (certificate ids stamped on receipt).
+    /// Live NI certify path (HTTP/MCP when configured, else in-crate; certificate ids stamped).
     pub fn close_live(&self, req: &MolRequest) -> Result<CloseOutcome> {
         let outcome = self.route(req)?;
         if !outcome.is_answered() {
@@ -441,8 +441,9 @@ impl MixtureOfLimits {
         let estimated_j = base.estimated_j.0;
         let efa_tag = extract_efa_tag(&req.query);
 
-        let ni = InCrateNiCertify::new();
-        let live = ni.certify_live(&summary, estimated_j, efa_tag, None)?;
+        // Prefer live HTTP/MCP when MOL_NI_CERTIFY_URL / MOL_WCA_CERTIFY_URL set;
+        // else in-crate. Fallback on transport error (default). Ferric/FPGA stub.
+        let live = certify_live_prefer_env(&summary, estimated_j, efa_tag, None)?;
         let cert_ids = vec![
             live.ni.certificate_id.clone(),
             live.ni.efa_id.clone(),
@@ -492,7 +493,8 @@ impl MixtureOfLimits {
                 .certificate_ids(cert_ids)
                 .executed(false)
                 .rationale(format!(
-                    "close REFUSE at live NI certify (ids={:?}; stage_c_measured=false): {}",
+                    "close REFUSE at live NI certify (source={}; ids={:?}; stage_c_measured=false; Ferric/FPGA stub): {}",
+                    live.ni.source,
                     [
                         live.ni.certificate_id.as_str(),
                         live.ni.efa_id.as_str(),
@@ -520,8 +522,9 @@ impl MixtureOfLimits {
             format!("; NI certificate stamped ids={:?}; stage_c_measured=false", cert_ids)
         };
         receipt.rationale = format!(
-            "{}; close COMMIT after live in-crate NI/EFA/WCA certify{cert_note}",
-            receipt.rationale
+            "{}; close COMMIT after live NI/EFA/WCA certify (source={}){cert_note}",
+            receipt.rationale,
+            live.ni.source
         );
 
         if let Some(proposal) = parse_remember(&req.query) {

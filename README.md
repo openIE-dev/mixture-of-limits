@@ -60,9 +60,9 @@ cargo test -p mol-desktop
 cargo run -p mol-desktop --features gui --bin mol-desktop
 ```
 
-Honesty: receipts print `estimated_j` and `measured_j=None` with labeled `measure_source`. **No fake RAPL/NVML.** `board_synth_claimed=false`.
+Honesty: receipts print `estimated_j` and `measured_j=None` unless a real meter ran (`energy-meter`). **No fake RAPL/NVML.** `board_synth_claimed=false`. Ferric / FPGA Stage C certify meters remain stubs (`stage_c_measured=false`).
 
-Agent Lane session path (partitions + host invoke grant receipts): [`docs/agent-lane-session.md`](./docs/agent-lane-session.md). WASM capsule: [`docs/wasm-capsule.md`](./docs/wasm-capsule.md). Ecosystem e2e certify: [`docs/ecosystem-e2e-certify.md`](./docs/ecosystem-e2e-certify.md). Multi-fabric compute: [`docs/multi-fabric-compute.md`](./docs/multi-fabric-compute.md).
+Agent Lane session path (partitions + host invoke grant receipts): [`docs/agent-lane-session.md`](./docs/agent-lane-session.md). WASM capsule: [`docs/wasm-capsule.md`](./docs/wasm-capsule.md). Ecosystem e2e certify: [`docs/ecosystem-e2e-certify.md`](./docs/ecosystem-e2e-certify.md). Live NI/WCA HTTP|MCP certify: [`docs/live-ni-wca-certify.md`](./docs/live-ni-wca-certify.md). Multi-fabric compute: [`docs/multi-fabric-compute.md`](./docs/multi-fabric-compute.md).
 
 ---
 
@@ -93,7 +93,7 @@ Sibling trees (patterns only — not forked): `openie-leapfrog`, `jouledb`, `wca
 - `FloorKind` — `voi`, `energy`, `grammar`, `efa_certificate`, `settle_refuse`, `primitive_gap`, …
 - `MixtureOfLimits::route` / `::close` — close = route + EFA/WCA certify + receipt
 - `AutomateGate::gate` — capability + certify before commit
-- `InCrateNiCertify` — live in-crate NI/EFA/WCA certify with certificate ids
+- `InCrateNiCertify` + `HttpNiCertify` — live NI/EFA/WCA certify (HTTP|MCP env-gated, in-crate fallback); Ferric/FPGA Stage C still stub
 - `ResidualModelAdapter` — Model LAST under VoI>0 + budget + cert
 - `EpisodeStore` / `Phase1Config` / `StubShuntHal` / `DistillStore`
 - `StubEfaCertificate` / `StubKlereSettle` / `StubOpenIeRuntime` / `StubWcaCommit`
@@ -142,3 +142,4 @@ See `product/PRODUCT.md` (vs Laya System One), `product/ACCEPTANCE.md`, `product
 | [docs/tier1-os-meters.md](./docs/tier1-os-meters.md) | Tier-1 RAPL / NVML / macOS SMC·IOReport — measured_j only on real readings |
 | [docs/wasm-capsule.md](./docs/wasm-capsule.md) | WASM capsule certify — stub/wasmtime, fuel estimate honesty, fail-closed |
 | [docs/ecosystem-e2e-certify.md](./docs/ecosystem-e2e-certify.md) | End-to-end ecosystem certify — Agent Lane + fabric + WASM + GrantReceipt → one receipt |
+| [docs/live-ni-wca-certify.md](./docs/live-ni-wca-certify.md) | Live NI/WCA HTTP\|MCP certify + in-crate fallback; Ferric/FPGA honesty |

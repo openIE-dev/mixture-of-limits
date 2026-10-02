@@ -104,7 +104,7 @@ Uncertified proposals never become Lookup. Distilled entries carry provenance (s
 | Cascade tiers | `mol-cascade` |
 | `route` / `close` | `mol-limits` |
 | Certify gate / agent loop | `mol-automate` |
-| WCA / EFA / Klere + **InCrateNiCertify** | `mol-adapters` |
+| WCA / EFA / Klere + **InCrateNiCertify** + **HttpNiCertify** (HTTP\|MCP env, in-crate fallback; Ferric/FPGA stub) | `mol-adapters` |
 | EpisodeStore / Phase1 / ShuntHal | `mol-core` |
 | Residual Model LAST / DistillStore | `mol-cascade` |
 | Receipts | `mol-receipt` |

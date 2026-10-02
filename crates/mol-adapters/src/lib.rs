@@ -1,11 +1,11 @@
 //! Trait adapters documenting hooks to sibling OpenIE / BMI / Klere projects.
 //!
 //! **Default: software-reference stubs** that exercise propose/certify/refuse
-//! and settle-or-refuse locally. Optional features `openie-path` / `wca-path` /
-//! `jouledb-path` / `efa-path` / `klere-path` are reserved for future light
-//! path-deps; v0.1 keeps stubs so this workspace builds without compiling
-//! `openie-leapfrog`, `wca-lut-edge`, `jouledb`, Ferric, or klere-vm.
-//! Real integration map: `BLUEPRINT.md` §path to MoL.
+//! and settle-or-refuse locally. Live NI/WCA certify is env-gated HTTP or
+//! MCP-shaped JSON-RPC (`MOL_NI_CERTIFY_URL` / `MOL_WCA_CERTIFY_URL`) with
+//! in-crate fallback — no sibling path-deps. Optional features `openie-path` /
+//! `wca-path` / `jouledb-path` / `efa-path` / `klere-path` remain reserved;
+//! Ferric / FPGA Stage C meters stay stubs. Map: `BLUEPRINT.md` §path to MoL.
 
 #![deny(missing_docs)]
 
@@ -15,6 +15,7 @@ mod klere;
 mod openie;
 mod wca;
 mod ni_live;
+mod ni_http;
 mod model_last;
 
 pub use efa::{
@@ -27,7 +28,12 @@ pub use klere::{
 };
 pub use openie::{live_ask_stub, OpenIeAskResult, OpenIeRuntimePort, StubOpenIeRuntime};
 pub use wca::{live_wca_stub, software_reference_cert, StubWcaCommit, WcaCertResult, WcaCommitPort};
-pub use ni_live::{InCrateNiCertify, LiveCertOutcome, NiCertificate};
+pub use ni_live::{CertifySource, InCrateNiCertify, LiveCertOutcome, NiCertificate};
+pub use ni_http::{
+    certify_live_prefer_env, fallback_enabled, CertifyTransport, HttpNiCertify,
+    LiveCertifyRequest, LiveCertifyResponse, ENV_CERTIFY_FALLBACK, ENV_CERTIFY_MODE,
+    ENV_CERTIFY_TIMEOUT_MS, ENV_CERTIFY_TOKEN, ENV_NI_CERTIFY_URL, ENV_WCA_CERTIFY_URL,
+};
 pub use model_last::{
     live_model_last_stub, model_last_from_endpoint, ModelLastPort, ModelLastProfile,
     ModelLastProposal, OpenAiCompatibleModelLast, StubModelLast,

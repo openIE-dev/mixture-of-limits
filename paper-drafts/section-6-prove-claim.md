@@ -63,7 +63,7 @@ These are PLAN §6 residuals. Citing them is allowed as roadmap / reference sema
 | Ferric / on-device EFA (BMI hardware loop) | Reference semantics only; not path-dep'd | P6, P18, P23* |
 | klere-vm WASM / FPGA meter (real pJ) | Software-ref `StubKlereSettle` | P5 |
 | Live `openie-path` / leapfrog ask bridge | Adapter port | — |
-| Live WCA MCP / `wca-lut-edge` in-proc certify | Adapter port | — |
+| Live WCA/`wca-lut-edge` **in-proc** + FPGA Stage C meter | Adapter residual (HTTP\|MCP NI certify **shipped**, env-gated) | Ferric/FPGA stub |
 | Full Periodic Stack 258 live catalog + μ calib corpus | Subset navigator + Gap + tier μ catalog are in proof | P10, P12 |
 | Trained weights / candle / tract Model leaf | Model stays demoted stub | P3, P4, P16 |
 
