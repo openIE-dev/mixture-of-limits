@@ -4,7 +4,7 @@
 
 | Path | What |
 |---|---|
-| `/Users/dcharlot/Desktop/mol-sync/mixture-of-limits/` | **Primary clean-room Rust reference** — workspace crates `mol-core` … `mol-cli` / `mol-desktop`; `mol prove` soft-ref; **not a git repo** (sync tree + tarballs under `mol-sync/`) |
+| `/Users/dcharlot/Desktop/mol-sync/mixture-of-limits/` | **Primary clean-room Rust reference** — workspace crates `mol-core` … `mol-cli` / `mol-desktop`; `mol prove` (PLAN + A1–A6); git → `openIE-dev/mixture-of-limits` |
 | `/Users/dcharlot/Desktop/mol-sync/*.tgz` | Kernel / meter / multi-fabric sync archives |
 | `/Users/dcharlot/data-share/vibe-coding/research-openie-web/` | Living papers hub (git → `openIE-dev/research-openie-web`) — MoL / NI / Satiation triad |
 | `/Users/dcharlot/data-share/vibe-coding/openie-fpga/` | WCA commit-gate FPGA artifacts (`wca_commit_gate_pt_v2.*`) |
@@ -18,7 +18,7 @@ No separate `wca-lut-edge` checkout found under `data-share/vibe-coding` in this
 | Repo | Status |
 |---|---|
 | `openIE-dev/research-openie-web` | **Exists** — MoL/NI/Satiation papers |
-| `openIE-dev/mixture-of-limits` | **Named in Cargo.toml / README; repository not found on GitHub** as of create time |
+| `openIE-dev/mixture-of-limits` | **Exists** — https://github.com/openIE-dev/mixture-of-limits (clean-room + `product/`) |
 | `dcharlot` personal MoL/Laya repos | No MoL/Laya product repo in filtered `openIE-dev` list |
 
 Auth account used for list: `dcharlot65-openie`.
