@@ -1,0 +1,37 @@
+# Arena fixture — Phase-1 unstructured risk features → Formula
+version: "0.1"
+product: mixture-of-limits
+chore:
+  id: arena.p1_risk_formula_unstructured
+  title: Arena Phase-1 unstructured closed-form risk
+  scenario: arena_commit
+  ask: "Need a risk score compute severity=1 exposure=0.2 likelihood=0.1 from the intake email"
+  phase1:
+    enabled: true
+    transducer: rule_ast
+  completeness:
+    id: C_risk_score
+    clauses:
+      - required_features_present: false
+      - score_within_policy_bounds: false
+      - certificate_for_publish: false
+limits:
+  - id: grammar
+    kind: grammar
+  - id: voi
+    kind: voi
+  - id: energy
+    kind: energy
+    max_estimated_j: 1.0e-3
+  - id: ni_certificate
+    kind: efa_certificate
+  - id: satiation
+    kind: completeness
+cascade:
+  allow_model: false
+measurement:
+  tier: 0
+  estimated_j: always
+  measured_j: only_when_meter_present
+  board_synth_claimed: false
+# expect: phase1→risk score compute … → commit_formula gold=RISK-LOW; estimates≠measured_j

@@ -3437,6 +3437,52 @@ fn criterion_product_a14_arena() -> Criterion {
         );
     }
 
+    // Phase-1 micro-perception → typed AST → Lookup (arena unstructured path).
+    let p1 = Phase1Config {
+        enabled: true,
+        transducer: "rule_ast".into(),
+    };
+    let ast = match run_phase1(
+        &p1,
+        "Hi support — please close this ticket as R-DUP, already filed last week. Thanks!",
+    ) {
+        Phase1Outcome::Typed(a) => a,
+        o => return Criterion::fail(name, format!("arena phase1 expected Typed, got {o:?}")),
+    };
+    if !ast.typed_query.contains("R-DUP") {
+        return Criterion::fail(name, format!("phase1 AST bad: {}", ast.typed_query));
+    }
+    let out = match mol.close(&MolRequest::new(&ast.typed_query, Budget::coin_cell())) {
+        Ok(o) => o,
+        Err(e) => return Criterion::fail(name, format!("phase1→cascade: {e}")),
+    };
+    if !out.is_commit() || out.receipt().cascade_answered != Some(CascadeTier::Lookup) {
+        return Criterion::fail(
+            name,
+            format!(
+                "phase1→Lookup commit failed; commit={} tier={:?}",
+                out.is_commit(),
+                out.receipt().cascade_answered
+            ),
+        );
+    }
+    if out.receipt().measured_j.is_some() {
+        return Criterion::fail(name, "phase1 arena path must not invent measured_j");
+    }
+
+    // Unstructured risk → band LUT.
+    let ast = match run_phase1(&p1, "Can you score this as low risk for the customer account?") {
+        Phase1Outcome::Typed(a) => a,
+        o => return Criterion::fail(name, format!("risk phase1: {o:?}")),
+    };
+    let out = match mol.close(&MolRequest::new(&ast.typed_query, Budget::coin_cell())) {
+        Ok(o) => o,
+        Err(e) => return Criterion::fail(name, format!("risk phase1 cascade: {e}")),
+    };
+    if !out.is_commit() {
+        return Criterion::fail(name, "unstructured risk phase1 must commit Lookup");
+    }
+
     // Frontier / System One catalog surrogates are Estimated-only by construction in bench.rs.
     let frontier_est = 5.0e-1;
     let system_one_est = 2.5e-4;
@@ -3446,6 +3492,6 @@ fn criterion_product_a14_arena() -> Criterion {
 
     Criterion::verified(
         name,
-        "A14: arena head-on (LUT + Formula risk + Solver route/knapsack); refuse_when_C=1; Estimated only; no invent",
+        "A14: arena head-on (LUT + Formula + Solver + Phase-1→typed); refuse_when_C=1; Estimated only; no invent",
     )
 }

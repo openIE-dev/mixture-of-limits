@@ -70,7 +70,7 @@ cascade:
 
 phase1:
   enabled: false              # MVP: typed ticket AST assumed; enable for unstructured email/voice
-  transducer: null            # v2: TinyML / bounded micro-perception → typed AST
+  transducer: rule_ast        # in-tree rule AST; arena chores may set phase1=true (TinyML v2 later)
 
 on_refuse:
   grammar_miss: receipt_limit_grammar

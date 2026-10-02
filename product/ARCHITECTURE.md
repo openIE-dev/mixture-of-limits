@@ -41,6 +41,7 @@ Embodiment stack for the valued product. Companion laws: **Navigation** (Mixture
 - Emits typed AST only. Does not replace Formula. Does not become the substrate.
 - Default chores: `phase1.enabled=false` — tickets arrive typed.
 - Enable path: `phase1.enabled=true` → in-tree **rule AST transducer** (`mol phase1` / `run_phase1`); unrecognized refuses parser-as-model.
+- Arena: chores with `phase1=true` feed unstructured ticket/risk/decision strings through the same transducer before Lookup → Formula → Solver → Model LAST (typed baselines stay `phase1=false`).
 - Cost class: ultra-light; never a second Model LAST parser by default.
 
 ### Phase 2 (Mixture of Limits cascade)

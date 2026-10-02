@@ -1,0 +1,37 @@
+# Arena fixture — Phase-1 unstructured ticket → typed AST → Lookup
+version: "0.1"
+product: mixture-of-limits
+chore:
+  id: arena.p1_ticket_unstructured
+  title: Arena Phase-1 unstructured ticket
+  scenario: arena_commit
+  ask: "Hi support — please close this ticket as R-DUP, already filed last week. Thanks!"
+  phase1:
+    enabled: true
+    transducer: rule_ast
+  completeness:
+    id: C_ticket_close
+    clauses:
+      - resolution_code_set: false
+      - customer_ack_or_sla_elapsed: false
+      - no_open_blocker: false
+limits:
+  - id: grammar
+    kind: grammar
+  - id: voi
+    kind: voi
+  - id: energy
+    kind: energy
+    max_estimated_j: 1.0e-3
+  - id: ni_certificate
+    kind: efa_certificate
+  - id: satiation
+    kind: completeness
+cascade:
+  allow_model: false
+measurement:
+  tier: 0
+  estimated_j: always
+  measured_j: only_when_meter_present
+  board_synth_claimed: false
+# expect: phase1→typed ticket close resolution=R-DUP → commit_lookup; estimates≠measured_j

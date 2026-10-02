@@ -4,9 +4,13 @@
 //! Arena mode: Arena-shaped chores (typed decision / ticket-close / risk) —
 //! MoL cascade vs frontier-sim (always-model) vs System One leaf-only (Jev/Laya-class stub).
 //!
+//! Phase-1 micro-perception (optional per chore): unstructured ticket/risk/decision
+//! strings → typed AST/schema → Lookup → Formula → Solver → Model LAST.
+//! Baseline typed asks stay as-is (`phase1=false`).
+//!
 //! Metrics: correct_close, refuse_when_C=1, estimated_j (Estimated label), latency.
 //! Labels energy **Estimated | Metered** only. Never invents `measured_j`.
-//! `board_synth_claimed=false`.
+//! `board_synth_claimed=false`. Estimates ≠ `measured_j`.
 //! Optional `--endpoint` adds `real_leaf` (OpenAI-compatible Model LAST); default offline stub.
 
 use std::process::ExitCode;
@@ -16,8 +20,8 @@ use mol_adapters::{
     model_last_from_endpoint, ModelLastPort, ModelLastProfile, MODEL_LAST_STUB_ESTIMATED_J,
 };
 use mol_core::{
-    Budget, CompletenessSnapshot, DeviceKind, FabricInventory, Joules, MolRequest,
-    BOARD_SYNTH_CLAIMED,
+    run_phase1, Budget, CompletenessSnapshot, DeviceKind, FabricInventory, Joules, MolRequest,
+    Phase1Config, Phase1Outcome, BOARD_SYNTH_CLAIMED,
 };
 use mol_limits::{CloseOutcome, MixtureOfLimits};
 use serde::Serialize;
@@ -95,6 +99,8 @@ struct ArenaChore {
     gold: &'static str,
     /// When Some, mol_cascade Commit must close at this tier label (lookup|formula|solver).
     expect_tier: Option<&'static str>,
+    /// When true, mol_cascade runs Phase-1 rule AST on `ask` before cascade.
+    phase1: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -168,6 +174,7 @@ fn arena_chores() -> Vec<ArenaChore> {
             expect: ExpectClose::Commit,
             gold: "R-HOWTO",
             expect_tier: None,
+            phase1: false,
         },
         ArenaChore {
             id: "ticket_lut_ok",
@@ -177,6 +184,7 @@ fn arena_chores() -> Vec<ArenaChore> {
             expect: ExpectClose::Commit,
             gold: "R-OK",
             expect_tier: None,
+            phase1: false,
         },
         ArenaChore {
             id: "ticket_lut_dup",
@@ -186,6 +194,7 @@ fn arena_chores() -> Vec<ArenaChore> {
             expect: ExpectClose::Commit,
             gold: "R-DUP",
             expect_tier: None,
+            phase1: false,
         },
         ArenaChore {
             id: "ticket_lut_bugfix",
@@ -195,6 +204,7 @@ fn arena_chores() -> Vec<ArenaChore> {
             expect: ExpectClose::Commit,
             gold: "R-BUGFIX",
             expect_tier: None,
+            phase1: false,
         },
         ArenaChore {
             id: "ticket_lut_wontfix",
@@ -204,6 +214,7 @@ fn arena_chores() -> Vec<ArenaChore> {
             expect: ExpectClose::Commit,
             gold: "R-WONTFIX",
             expect_tier: None,
+            phase1: false,
         },
         ArenaChore {
             id: "ticket_lut_refund",
@@ -213,6 +224,7 @@ fn arena_chores() -> Vec<ArenaChore> {
             expect: ExpectClose::Commit,
             gold: "R-REFUND",
             expect_tier: None,
+            phase1: false,
         },
         // ── Risk LUT commits
         ArenaChore {
@@ -223,6 +235,7 @@ fn arena_chores() -> Vec<ArenaChore> {
             expect: ExpectClose::Commit,
             gold: "RISK-LOW",
             expect_tier: None,
+            phase1: false,
         },
         ArenaChore {
             id: "risk_lut_med",
@@ -232,6 +245,7 @@ fn arena_chores() -> Vec<ArenaChore> {
             expect: ExpectClose::Commit,
             gold: "RISK-MED",
             expect_tier: None,
+            phase1: false,
         },
         ArenaChore {
             id: "risk_lut_high",
@@ -241,6 +255,7 @@ fn arena_chores() -> Vec<ArenaChore> {
             expect: ExpectClose::Commit,
             gold: "RISK-HIGH",
             expect_tier: None,
+            phase1: false,
         },
         // ── Typed decision LUT commits
         ArenaChore {
@@ -251,6 +266,7 @@ fn arena_chores() -> Vec<ArenaChore> {
             expect: ExpectClose::Commit,
             gold: "D-APPROVE",
             expect_tier: None,
+            phase1: false,
         },
         ArenaChore {
             id: "typed_decide_deny",
@@ -260,6 +276,7 @@ fn arena_chores() -> Vec<ArenaChore> {
             expect: ExpectClose::Commit,
             gold: "D-DENY",
             expect_tier: None,
+            phase1: false,
         },
         ArenaChore {
             id: "typed_decide_escalate",
@@ -269,6 +286,7 @@ fn arena_chores() -> Vec<ArenaChore> {
             expect: ExpectClose::Commit,
             gold: "D-ESCALATE",
             expect_tier: None,
+            phase1: false,
         },
         // ── Formula: closed-form risk (LUT miss — no band=RISK-*)
         ArenaChore {
@@ -279,6 +297,7 @@ fn arena_chores() -> Vec<ArenaChore> {
             expect: ExpectClose::Commit,
             gold: "RISK-LOW",
             expect_tier: Some("formula"),
+            phase1: false,
         },
         ArenaChore {
             id: "risk_formula_med",
@@ -288,6 +307,7 @@ fn arena_chores() -> Vec<ArenaChore> {
             expect: ExpectClose::Commit,
             gold: "RISK-MED",
             expect_tier: Some("formula"),
+            phase1: false,
         },
         ArenaChore {
             id: "risk_formula_high",
@@ -297,6 +317,7 @@ fn arena_chores() -> Vec<ArenaChore> {
             expect: ExpectClose::Commit,
             gold: "RISK-HIGH",
             expect_tier: Some("formula"),
+            phase1: false,
         },
         // ── Solver: deterministic ticket routing + SAT assign + tiny knapsack
         ArenaChore {
@@ -307,6 +328,7 @@ fn arena_chores() -> Vec<ArenaChore> {
             expect: ExpectClose::Commit,
             gold: "R-HOWTO",
             expect_tier: Some("solver"),
+            phase1: false,
         },
         ArenaChore {
             id: "ticket_route_refund",
@@ -316,6 +338,7 @@ fn arena_chores() -> Vec<ArenaChore> {
             expect: ExpectClose::Commit,
             gold: "R-REFUND",
             expect_tier: Some("solver"),
+            phase1: false,
         },
         ArenaChore {
             id: "ticket_sat_dup",
@@ -325,6 +348,7 @@ fn arena_chores() -> Vec<ArenaChore> {
             expect: ExpectClose::Commit,
             gold: "R-DUP",
             expect_tier: Some("solver"),
+            phase1: false,
         },
         ArenaChore {
             id: "ticket_knapsack_route",
@@ -334,6 +358,7 @@ fn arena_chores() -> Vec<ArenaChore> {
             expect: ExpectClose::Commit,
             gold: "route_howto",
             expect_tier: Some("solver"),
+            phase1: false,
         },
         // ── Satiation C(z)=1 refuse (MoL wins refuse_when_C=1)
         ArenaChore {
@@ -344,6 +369,7 @@ fn arena_chores() -> Vec<ArenaChore> {
             expect: ExpectClose::RefuseSatiation,
             gold: "R-OK",
             expect_tier: None,
+            phase1: false,
         },
         ArenaChore {
             id: "ticket_satiation_c1_howto",
@@ -353,6 +379,7 @@ fn arena_chores() -> Vec<ArenaChore> {
             expect: ExpectClose::RefuseSatiation,
             gold: "R-HOWTO",
             expect_tier: None,
+            phase1: false,
         },
         ArenaChore {
             id: "risk_satiation_c1",
@@ -362,6 +389,7 @@ fn arena_chores() -> Vec<ArenaChore> {
             expect: ExpectClose::RefuseSatiation,
             gold: "RISK-MED",
             expect_tier: None,
+            phase1: false,
         },
         ArenaChore {
             id: "risk_satiation_c1_high",
@@ -371,6 +399,7 @@ fn arena_chores() -> Vec<ArenaChore> {
             expect: ExpectClose::RefuseSatiation,
             gold: "RISK-HIGH",
             expect_tier: None,
+            phase1: false,
         },
         ArenaChore {
             id: "typed_satiation_c1",
@@ -380,6 +409,7 @@ fn arena_chores() -> Vec<ArenaChore> {
             expect: ExpectClose::RefuseSatiation,
             gold: "D-APPROVE",
             expect_tier: None,
+            phase1: false,
         },
         // ── VoI=0 refuse (free-form; MoL wins; peers still "decide")
         ArenaChore {
@@ -390,6 +420,7 @@ fn arena_chores() -> Vec<ArenaChore> {
             expect: ExpectClose::RefuseVoi,
             gold: "(refuse)",
             expect_tier: None,
+            phase1: false,
         },
         ArenaChore {
             id: "voi_freeform_essay",
@@ -399,6 +430,7 @@ fn arena_chores() -> Vec<ArenaChore> {
             expect: ExpectClose::RefuseVoi,
             gold: "(refuse)",
             expect_tier: None,
+            phase1: false,
         },
         ArenaChore {
             id: "voi_freeform_story",
@@ -408,6 +440,99 @@ fn arena_chores() -> Vec<ArenaChore> {
             expect: ExpectClose::RefuseVoi,
             gold: "(refuse)",
             expect_tier: None,
+            phase1: false,
+        },
+        // ── Phase-1 micro-perception: unstructured → typed AST → cascade
+        // Baselines above stay typed (phase1=false). These prove raw-ish arena path.
+        ArenaChore {
+            id: "p1_ticket_dup_email",
+            kind: ArenaKind::TicketClose,
+            ask: "Hi support — please close this ticket as R-DUP, already filed last week. Thanks!",
+            completeness: None,
+            expect: ExpectClose::Commit,
+            gold: "R-DUP",
+            expect_tier: Some("lookup"),
+            phase1: true,
+        },
+        ArenaChore {
+            id: "p1_ticket_ok_resolved",
+            kind: ArenaKind::TicketClose,
+            ask: "Customer confirmed works as expected — please close ticket resolution R-OK.",
+            completeness: None,
+            expect: ExpectClose::Commit,
+            gold: "R-OK",
+            expect_tier: Some("lookup"),
+            phase1: true,
+        },
+        ArenaChore {
+            id: "p1_ticket_refund_billing",
+            kind: ArenaKind::TicketClose,
+            ask: "Billing case: customer wants a refund — close this ticket as R-REFUND.",
+            completeness: None,
+            expect: ExpectClose::Commit,
+            gold: "R-REFUND",
+            expect_tier: Some("lookup"),
+            phase1: true,
+        },
+        ArenaChore {
+            id: "p1_risk_low_chat",
+            kind: ArenaKind::Risk,
+            ask: "Can you score this as low risk for the customer account?",
+            completeness: None,
+            expect: ExpectClose::Commit,
+            gold: "RISK-LOW",
+            expect_tier: Some("lookup"),
+            phase1: true,
+        },
+        ArenaChore {
+            id: "p1_risk_high_note",
+            kind: ArenaKind::Risk,
+            ask: "Flag: this looks like high risk — please band it RISK-HIGH before publish.",
+            completeness: None,
+            expect: ExpectClose::Commit,
+            gold: "RISK-HIGH",
+            expect_tier: Some("lookup"),
+            phase1: true,
+        },
+        ArenaChore {
+            id: "p1_risk_formula_email",
+            kind: ArenaKind::Risk,
+            ask: "Need a risk score compute severity=1 exposure=0.2 likelihood=0.1 from the intake email",
+            completeness: None,
+            expect: ExpectClose::Commit,
+            gold: "RISK-LOW",
+            expect_tier: Some("formula"),
+            phase1: true,
+        },
+        ArenaChore {
+            id: "p1_decide_approve_msg",
+            kind: ArenaKind::TypedDecision,
+            ask: "Please approve this access request under policy (typed decision).",
+            completeness: None,
+            expect: ExpectClose::Commit,
+            gold: "D-APPROVE",
+            expect_tier: Some("lookup"),
+            phase1: true,
+        },
+        ArenaChore {
+            id: "p1_decide_deny_msg",
+            kind: ArenaKind::TypedDecision,
+            ask: "Policy miss — please deny this request (D-DENY).",
+            completeness: None,
+            expect: ExpectClose::Commit,
+            gold: "D-DENY",
+            expect_tier: Some("lookup"),
+            phase1: true,
+        },
+        ArenaChore {
+            id: "p1_decide_escalate_msg",
+            kind: ArenaKind::TypedDecision,
+            ask: "Ambiguous case — please escalate this to the manager queue.",
+            completeness: None,
+            expect: ExpectClose::Commit,
+            gold: "D-ESCALATE",
+            expect_tier: Some("lookup"),
+            phase1: true,
         },
     ]
 }
@@ -517,9 +642,9 @@ pub fn cmd_arena(opts: ArenaOpts) -> ExitCode {
         println!("=== mol arena — Mixture of Limits head-on ===");
         println!("board_synth_claimed={}", report.board_synth_claimed);
         let strat_line = if want_real {
-            "chores: typed/ticket/risk + Formula risk + Solver route  |  strategies: mol_cascade | frontier_sim | system_one_leaf | real_leaf\n"
+            "chores: typed/ticket/risk + Formula/Solver + Phase-1 unstructured  |  strategies: mol_cascade | frontier_sim | system_one_leaf | real_leaf\n"
         } else {
-            "chores: typed/ticket/risk + Formula risk + Solver route  |  strategies: mol_cascade | frontier_sim | system_one_leaf  (pass --endpoint for real_leaf)\n"
+            "chores: typed/ticket/risk + Formula/Solver + Phase-1 unstructured  |  strategies: mol_cascade | frontier_sim | system_one_leaf  (pass --endpoint for real_leaf)\n"
         };
         print!("{strat_line}");
         for r in &report.rows {
@@ -658,14 +783,64 @@ fn run_mol_cascade(mol: &MixtureOfLimits, chore: &ArenaChore) -> ArenaRow {
         ExpectClose::RefuseVoi => Budget::demo(),
         _ => Budget::coin_cell(),
     };
-    let mut req = MolRequest::new(chore.ask, budget);
+
+    // Phase-1 micro-perception: unstructured → typed AST → cascade (Lookup/Formula/Solver/Model LAST).
+    let (ask, p1_j, p1_fail) = if chore.phase1 {
+        let cfg = Phase1Config {
+            enabled: true,
+            transducer: "rule_ast".into(),
+        };
+        match run_phase1(&cfg, chore.ask) {
+            Phase1Outcome::Typed(ast) => (ast.typed_query, ast.estimated_j, None),
+            Phase1Outcome::Passthrough { raw } => (raw, 0.0, None),
+            Phase1Outcome::Unrecognized { reason, .. } => {
+                (String::new(), 0.0, Some(reason))
+            }
+        }
+    } else {
+        (chore.ask.to_string(), 0.0, None)
+    };
+
+    if let Some(reason) = p1_fail {
+        let wall_us = t0.elapsed().as_micros() as u64;
+        return ArenaRow {
+            chore_id: chore.id.into(),
+            kind: chore.kind,
+            strategy: "mol_cascade".into(),
+            ask: chore.ask.into(),
+            commit: false,
+            limit_id: Some(format!("phase1_unrecognized:{reason}")),
+            tier: None,
+            estimated_j: 0.0,
+            measured_j: None,
+            energy_label: EnergyLabel::Estimated,
+            wall_us,
+            model_invoked: false,
+            correct_close: false,
+            refuse_when_c1: if matches!(chore.expect, ExpectClose::RefuseSatiation) {
+                Some(false)
+            } else {
+                None
+            },
+            gold: chore.gold.into(),
+        };
+    }
+
+    let mut req = MolRequest::new(&ask, budget);
     if let Some(ref c) = chore.completeness {
         req = req.with_completeness(c.clone());
     }
     let out = mol.close(&req);
     let wall_us = t0.elapsed().as_micros() as u64;
     match out {
-        Ok(o) => arena_from_outcome("mol_cascade", chore, &o, wall_us, false),
+        Ok(o) => {
+            let mut row = arena_from_outcome("mol_cascade", chore, &o, wall_us, false);
+            // Catalog-only Phase-1 joules fold into Estimated; never invent measured_j.
+            if p1_j > 0.0 {
+                row.estimated_j += p1_j;
+            }
+            row
+        }
         Err(e) => ArenaRow {
             chore_id: chore.id.into(),
             kind: chore.kind,
@@ -674,7 +849,7 @@ fn run_mol_cascade(mol: &MixtureOfLimits, chore: &ArenaChore) -> ArenaRow {
             commit: false,
             limit_id: Some(format!("error:{e}")),
             tier: None,
-            estimated_j: 0.0,
+            estimated_j: p1_j,
             measured_j: None,
             energy_label: EnergyLabel::Estimated,
             wall_us,

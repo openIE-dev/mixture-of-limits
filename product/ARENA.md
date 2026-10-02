@@ -1,6 +1,6 @@
 # ARENA.md — `mol arena` head-on vs System One / frontier
 
-**Purpose:** Run Arena-shaped chores — **typed decision / ticket-close / risk** — and score Mixture of Limits cascade against **frontier_sim** (always-model) and **system_one_leaf** (Jev/Laya-class stub). Compete directly. Floors win when they exist; Model LAST still used when needed; peers age; each stands alone. Never invent `measured_j`. Estimates ≠ `measured_j`.
+**Purpose:** Run Arena-shaped chores — **typed decision / ticket-close / risk**, plus **Phase-1** unstructured → typed AST — and score Mixture of Limits cascade against **frontier_sim** (always-model) and **system_one_leaf** (Jev/Laya-class stub). Compete directly. Floors win when they exist; Model LAST still used when needed; peers age; each stands alone. Never invent `measured_j`. Estimates ≠ `measured_j`.
 
 ## One harness, head-on scoreboard
 
@@ -45,6 +45,7 @@ Soft-ref never invents `measured_j`. Frontier / System One / MoE-sim joules are 
 | Typed decision | `D-APPROVE` / `D-DENY` / `D-ESCALATE` | Commit Lookup |
 | **Risk Formula** | `risk score compute severity=… exposure=… likelihood=…` (LUT miss) | Commit **Formula** closed-form band |
 | **Ticket Solver** | `ticket route …` / `ticket sat assign …` / `solve knapsack …` (LUT miss) | Commit **Solver** rules / SAT / tiny LP |
+| **Phase-1 unstructured** | email/chat ticket / risk / decision strings (`phase1=true`) | Rule AST → typed ask → **Lookup** / **Formula** (Model LAST last) |
 | Satiation | ticket / risk / typed + `C(z)=1` | MoL **REFUSE** `satiation`; peers still commit |
 | VoI=0 | free-form poem / essay / story | MoL **REFUSE** `voi`; peers still commit |
 
