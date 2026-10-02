@@ -81,4 +81,4 @@ mol distill "residual text" --gear lookup --store product/fixtures/distill_store
 
 ## Roadmap polish
 
-`mol dev` (watch, receipt diff UI) — not required for A1–A14.
+`mol dev` — cheap DX status (live catalog counts, Stage C honesty, PUBLISH soft-ref readiness). Watch/receipt-diff UI polish remains residual; not required for A1–A14.

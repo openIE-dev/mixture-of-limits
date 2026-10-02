@@ -188,6 +188,8 @@ pub fn run_prove() -> bool {
     results.push(criterion_product_a7_live_ni_cert());
     results.push(criterion_product_a7b_http_mcp_fallback());
     results.push(criterion_product_a8_residual_model_last());
+    results.push(criterion_product_a8b_model_last_endpoint());
+    results.push(criterion_product_stage_c_fpga());
     results.push(criterion_product_a9_episode_cz());
     results.push(criterion_product_a10_bench_labels());
     results.push(criterion_product_a11_phase1());
@@ -211,8 +213,8 @@ pub fn run_prove() -> bool {
         let failed = results.iter().filter(|c| !c.ok).count();
         println!("PROVE RESULT: FAILED ({failed}/{})", results.len());
     }
-    println!("OUT OF PROOF SCOPE: Ferric/MuJoCo robot EFA hardware, FPGA Stage C / wca-lut-edge in-proc + board meters (stage_c_measured=false), klere-vm package meters, System One pre-gate, remaining ~128 of 258 thesis primitives (live catalog in proof), live nvidia-smi on hosts without NVIDIA (feature energy-meter still honest-unavailable). Live NI/WCA HTTP|MCP certify is in-tree (env-gated; in-crate fallback).");
-    println!("IN PROOF (product gaps): live NI cert ids (in-crate + HTTP|MCP prefer_env fallback), Residual Model LAST, durable EpisodeStore C(z), mol bench Estimated|Metered, mol arena head-on, phase1 rule AST, distill v1, Tier-1 RAPL/NVML/macOS-SMC meter honesty + Tier-2 StubShuntHal");
+    println!("OUT OF PROOF SCOPE: Ferric/MuJoCo robot EFA hardware, FPGA Stage C / wca-lut-edge in-proc + board meters (stage_c_measured=false), klere-vm package meters, System One pre-gate, remaining ~78 of 258 thesis primitives (live catalog in proof; honest Gaps retained), live nvidia-smi on hosts without NVIDIA (feature energy-meter still honest-unavailable). Live NI/WCA HTTP|MCP certify is in-tree (env-gated; in-crate fallback).");
+    println!("IN PROOF (product gaps): live NI cert ids (in-crate + HTTP|MCP prefer_env fallback), Residual Model LAST (+ optional endpoint fail-closed), Stage C soft-ref inventory (stage_c_measured=false), durable EpisodeStore C(z), mol bench Estimated|Metered, mol arena head-on, phase1 rule AST, distill v1, Tier-1 RAPL/NVML/macOS-SMC meter honesty + Tier-2 StubShuntHal");
     all_ok
 }
 
@@ -470,7 +472,7 @@ fn criterion_replay_coercion() -> Criterion {
 fn criterion_live_catalog_gears(mol: &MixtureOfLimits) -> Criterion {
     let name = "live_catalog_gears";
     let stack = PeriodicStack::subset();
-    if stack.live_gear_count() < 120 {
+    if stack.live_gear_count() < 170 {
         return Criterion::fail(name, format!("live_gear_count={}", stack.live_gear_count()));
     }
     // Sample live closes at the declared gear (not placeholders).
@@ -485,6 +487,14 @@ fn criterion_live_catalog_gears(mol: &MixtureOfLimits) -> Criterion {
         ("popcount x=15", CascadeTier::Lookup, "popcount"),
         ("is_prime_u64 n=17", CascadeTier::Solver, "is_prime"),
         ("cosine_sim a=[1,0] b=[1,0]", CascadeTier::Solver, "cosine"),
+        ("area_rectangle w=3 h=4", CascadeTier::Formula, "area_rectangle"),
+        ("str_starts_with s=hello prefix=he", CascadeTier::Lookup, "str_starts_with"),
+        ("sum_f64 xs=[1,2,3,4]", CascadeTier::Solver, "sum_f64"),
+        ("factorial_u64 n=5", CascadeTier::Solver, "factorial"),
+        ("bit_and a=12 b=10", CascadeTier::Lookup, "bit_and"),
+        ("bmi_formula kg=70 height=1.75", CascadeTier::Formula, "bmi"),
+        ("set_symmetric_diff a=[1,2,3] b=[3,4]", CascadeTier::Solver, "set_symmetric"),
+        ("miles_to_km mi=1", CascadeTier::Lookup, "miles_to_km"),
     ];
     for (q, expect_tier, needle) in samples {
         let out = match close(mol, q, Budget::coin_cell()) {
@@ -536,7 +546,7 @@ fn criterion_live_catalog_gears(mol: &MixtureOfLimits) -> Criterion {
 fn criterion_stack_navigation(mol: &MixtureOfLimits) -> Criterion {
     let name = "stack_navigation";
     let stack = PeriodicStack::subset();
-    if stack.present_count() < 120 || stack.gap_count() < 5 {
+    if stack.present_count() < 170 || stack.gap_count() < 5 {
         return Criterion::fail(
             name,
             format!(
@@ -547,7 +557,7 @@ fn criterion_stack_navigation(mol: &MixtureOfLimits) -> Criterion {
             ),
         );
     }
-    if stack.live_gear_count() < 120 {
+    if stack.live_gear_count() < 170 {
         return Criterion::fail(
             name,
             format!(
@@ -3272,6 +3282,79 @@ fn criterion_product_a8_residual_model_last() -> Criterion {
     )
 }
 
+fn criterion_product_a8b_model_last_endpoint() -> Criterion {
+    let name = "product_a8b_model_last_endpoint";
+    use mol_adapters::{model_last_from_endpoint, ModelLastProfile, StubModelLast};
+    // Offline stub path via factory (no endpoint).
+    let stub = model_last_from_endpoint(None, ModelLastProfile::LayaHf, None);
+    let cold = MolRequest::new("residual propose x", Budget::coin_cell());
+    if stub.propose(&cold).is_ok() {
+        return Criterion::fail(name, "endpoint/stub factory must refuse without allow_model");
+    }
+    let mut b = Budget::demo().allow_model();
+    b.max_j = Joules::new(1.0);
+    let p = match stub.propose(&MolRequest::new("residual propose ticket summary", b)) {
+        Ok(p) => p,
+        Err(e) => return Criterion::fail(name, format!("stub propose: {e}")),
+    };
+    if p.measured_j.is_some() || !p.offline || !p.honesty_ok() {
+        return Criterion::fail(name, "stub must be offline with measured_j=None");
+    }
+    // Optional endpoint: unreachable URL must refuse transport — never invent answer/joules.
+    let ep = model_last_from_endpoint(
+        Some("http://127.0.0.1:9"),
+        ModelLastProfile::Stub,
+        Some("local"),
+    );
+    match ep.propose(&MolRequest::new("residual propose unreachable", b)) {
+        Ok(p) if p.measured_j.is_some() => {
+            return Criterion::fail(name, "failed endpoint must not invent measured_j");
+        }
+        Ok(_) => {
+            return Criterion::fail(name, "unreachable endpoint must not invent a proposal");
+        }
+        Err(e) => {
+            let s = e.to_string();
+            if !s.to_ascii_lowercase().contains("measured_j") {
+                return Criterion::fail(name, format!("refuse should mention measured_j stays None: {s}"));
+            }
+        }
+    }
+    // Profile docs still available on named stubs.
+    let _ = StubModelLast::decider_hf();
+    Criterion::verified(
+        name,
+        "A8b: Model LAST factory stub offline; optional endpoint fail-closed (no invented measured_j)",
+    )
+}
+
+fn criterion_product_stage_c_fpga() -> Criterion {
+    let name = "product_stage_c_fpga_soft";
+    use mol_adapters::{certify_stage_c_soft, live_stage_c_meter_stub, probe_stage_c};
+    let inv = probe_stage_c();
+    if inv.stage_c_measured || inv.board_synth_claimed {
+        return Criterion::fail(name, "stage_c probe must keep measured/board_synth false");
+    }
+    let cert = certify_stage_c_soft("wca commit gate soft-ref");
+    if cert.stage_c_measured || cert.board_synth_claimed {
+        return Criterion::fail(name, "stage_c certify must keep flags false");
+    }
+    let refuse = certify_stage_c_soft("stage_c_measured=true board meter claim");
+    if refuse.decision != "refuse" {
+        return Criterion::fail(name, "fake board meter claim must refuse");
+    }
+    if live_stage_c_meter_stub().is_ok() {
+        return Criterion::fail(name, "live stage_c meter stub must stay AdapterStub");
+    }
+    Criterion::verified(
+        name,
+        format!(
+            "Stage C soft-ref: artifacts_present={}; stage_c_measured=false; board_synth_claimed=false; live meter stub",
+            inv.artifacts_present
+        ),
+    )
+}
+
 fn criterion_product_a9_episode_cz() -> Criterion {
     let name = "product_a9_durable_episode_cz";
     let dir = std::env::temp_dir().join(format!("mol-prove-ep-{}", std::process::id()));
@@ -3391,9 +3474,28 @@ fn criterion_product_a11_phase1() -> Criterion {
     ) {
         return Criterion::fail(name, "unrecognized must not invent parser-as-model");
     }
+    // Arena + catalog paths: risk band, decision, landauer, settle must type.
+    for (raw, needle) in [
+        ("Can you score this as low risk for the customer?", "risk score"),
+        ("Please approve this access request under policy.", "typed decide"),
+        ("what is the landauer joules per bit floor?", "landauer"),
+        ("please settle ternary [1,1,1,1]", "settle"),
+    ] {
+        match run_phase1(&on, raw) {
+            Phase1Outcome::Typed(ast) => {
+                if !ast.typed_query.to_ascii_lowercase().contains(needle) {
+                    return Criterion::fail(
+                        name,
+                        format!("phase1 path '{raw}' expected '{needle}' in {}", ast.typed_query),
+                    );
+                }
+            }
+            o => return Criterion::fail(name, format!("phase1 path '{raw}' expected Typed, got {o:?}")),
+        }
+    }
     Criterion::verified(
         name,
-        "A11: phase1.enabled workable; rule AST transducer; refuse unrecognized",
+        "A11: phase1.enabled workable; rule AST covers ticket/risk/decision/physics/settle; refuse unrecognized",
     )
 }
 

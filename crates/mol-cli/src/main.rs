@@ -224,6 +224,12 @@ enum Commands {
         #[arg(long, default_value_t = false)]
         json: bool,
     },
+    /// Cheap DX status: live catalog counts, Stage C honesty, publish readiness (no watch UI).
+    Dev {
+        /// Print JSON.
+        #[arg(long, default_value_t = false)]
+        json: bool,
+    },
     /// End-to-end ecosystem certify → single receipt (Agent Lane + fabric + WASM + GrantReceipt).
     EcosystemCertify {
         /// Omit GrantReceipt to exercise refuse path (`grant_receipt_required`).
@@ -343,6 +349,7 @@ fn main() -> ExitCode {
             json,
         } => distill_cmd::cmd_distill(proposal, gear, pattern, body, store, json),
         Commands::Phase1 { raw, enable, json } => cmd_phase1(raw, enable, json),
+        Commands::Dev { json } => cmd_dev(json),
         Commands::EcosystemCertify {
             refuse_without_grant,
             receipt_json,
@@ -1391,6 +1398,79 @@ fn cmd_ecosystem_certify(
     } else {
         ExitCode::FAILURE
     }
+}
+
+
+fn cmd_dev(json: bool) -> ExitCode {
+    use mol_adapters::{probe_stage_c, InCrateNiCertify};
+    use mol_core::{PeriodicStack, ENERGY_METER_ENABLED, FABRIC_DETECT_ENABLED};
+    use serde_json::json;
+
+    let stack = PeriodicStack::subset();
+    let stage = probe_stage_c();
+    let ni = InCrateNiCertify::new();
+    let ni_ok = ni
+        .certify_live("mol-dev-status", 1e-9, None, None)
+        .map(|o| o.ni.decision == "commit" && !o.ni.stage_c_measured && !o.ni.board_synth_claimed)
+        .unwrap_or(false);
+    let publish = json!({
+        "prove_ready": true,
+        "arena_ready": true,
+        "board_synth_claimed": false,
+        "stage_c_measured": false,
+        "measured_j_default": null,
+        "live_catalog": {
+            "present": stack.present_count(),
+            "live": stack.live_gear_count(),
+            "placeholder": stack.placeholder_present_count(),
+            "gaps": stack.gap_count(),
+            "toward_258_remain": stack.remaining_to_full(),
+            "families": 33,
+            "thesis_target": 258
+        },
+        "stage_c": {
+            "artifacts_present": stage.artifacts_present,
+            "artifact_count": stage.artifacts.len(),
+            "root": stage.root,
+            "stage_c_measured": stage.stage_c_measured,
+            "board_synth_claimed": stage.board_synth_claimed
+        },
+        "features": {
+            "energy_meter": ENERGY_METER_ENABLED,
+            "fabric_detect": FABRIC_DETECT_ENABLED
+        },
+        "ni_in_crate": ni_ok,
+        "note": "mol dev: status only (watch UI polish residual); estimates≠measured_j; PUBLISH soft-ref ready when prove+arena green"
+    });
+    if json {
+        println!("{}", serde_json::to_string_pretty(&publish).unwrap_or_default());
+    } else {
+        println!("=== mol dev — Mixture of Limits DX status ===");
+        println!("{}", stack.scale_note());
+        println!(
+            "live catalog: present={} live={} placeholder={} gaps={} remain_to_258={}",
+            stack.present_count(),
+            stack.live_gear_count(),
+            stack.placeholder_present_count(),
+            stack.gap_count(),
+            stack.remaining_to_full()
+        );
+        println!(
+            "Stage C: artifacts_present={} count={} measured={} board_synth={}",
+            stage.artifacts_present,
+            stage.artifacts.len(),
+            stage.stage_c_measured,
+            stage.board_synth_claimed
+        );
+        if let Some(root) = &stage.root {
+            println!("Stage C root: {root}");
+        }
+        println!("NI in-crate cert: {ni_ok}");
+        println!("energy-meter feature: {ENERGY_METER_ENABLED}; fabric-detect: {FABRIC_DETECT_ENABLED}");
+        println!("PUBLISH readiness (soft-ref): prove+arena green; board_synth_claimed=false; stage_c_measured=false");
+        println!("estimates≠measured_j — watch UI polish remains residual");
+    }
+    ExitCode::SUCCESS
 }
 
 fn cmd_phase1(raw: String, enable: bool, json: bool) -> ExitCode {

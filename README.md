@@ -60,7 +60,7 @@ cargo test -p mol-desktop
 cargo run -p mol-desktop --features gui --bin mol-desktop
 ```
 
-Honesty: receipts print `estimated_j` and `measured_j=None` unless a real meter ran (`energy-meter`). **No fake RAPL/NVML.** `board_synth_claimed=false`. Ferric / FPGA Stage C certify meters remain stubs (`stage_c_measured=false`).
+Honesty: receipts print `estimated_j` and `measured_j=None` unless a real meter ran (`energy-meter`). **No fake RAPL/NVML.** `board_synth_claimed=false`. Ferric / FPGA Stage C: soft-ref artifact inventory wired; certify meters remain stubs (`stage_c_measured=false`).
 
 Agent Lane session path (partitions + host invoke grant receipts): [`docs/agent-lane-session.md`](./docs/agent-lane-session.md). WASM capsule: [`docs/wasm-capsule.md`](./docs/wasm-capsule.md). Ecosystem e2e certify: [`docs/ecosystem-e2e-certify.md`](./docs/ecosystem-e2e-certify.md). Live NI/WCA HTTP|MCP certify: [`docs/live-ni-wca-certify.md`](./docs/live-ni-wca-certify.md). Multi-fabric compute: [`docs/multi-fabric-compute.md`](./docs/multi-fabric-compute.md).
 
@@ -111,11 +111,11 @@ cargo run -p mol-cli -- prove
 
 Optional `fabric-detect` (wgpu) and `energy-meter`/`os-meter` (Linux RAPL/powercap; Tier-1 NVML via `nvidia-smi` power.draw×window or energy.consumed delta; macOS IOReport rails + SMC PSTR package, or root powermetrics) are feature-gated. Soft-ref prove keeps `measured_j=None`. A failed or VM probe stays `unavailable` and never invents numbers (utilization % never becomes joules). See `mol meter` and product acceptance A13. Details: [docs/tier1-os-meters.md](./docs/tier1-os-meters.md).
 
-Live silicon / RAPL / Ferric EFA hardware / klere-vm FPGA / openie-path / WCA MCP / remaining ~128/258 thesis primitives are **OUT OF PROOF SCOPE**. In-tree Periodic Stack **live catalog** (~130 Present / ≥120 live Lookup·Formula·Solver gears + Gap markers) + registry `primitive_gap` + soft-ref **multi-fabric routing** (`mol-core::fabric`) are **in proof**. Ferric (github.com/dcharlot-physicalai-bmi/ferric) is reference semantics only — not path-dep'd.
+Live silicon / RAPL / Ferric EFA hardware / klere-vm FPGA / openie-path / WCA MCP / remaining ~78/258 thesis primitives are **OUT OF PROOF SCOPE**. In-tree Periodic Stack **live catalog** (~180 Present / ≥170 live Lookup·Formula·Solver gears + Gap markers) + registry `primitive_gap` + soft-ref **multi-fabric routing** (`mol-core::fabric`) are **in proof**. Ferric (github.com/dcharlot-physicalai-bmi/ferric) is reference semantics only — not path-dep'd.
 
 ## Gaps still stub
 
-Live `openie-path` ask, WCA MCP, Ferric/on-device EFA certificate, klere-vm/FPGA meter, remaining ~128/258 thesis primitives + μ calib corpus. Default build ships growing live catalog (130 Present / 129 live gears; honest counts in `scale_note` / `mol prove`).
+Live `openie-path` ask, WCA MCP, Ferric/on-device EFA certificate, klere-vm/FPGA meter, remaining ~78/258 thesis primitives + μ calib corpus. Default build ships growing live catalog (180 Present / 179 live gears; honest counts in `scale_note` / `mol prove`).
 
 ---
 

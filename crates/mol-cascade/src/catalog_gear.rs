@@ -556,6 +556,102 @@ impl CatalogFormula {
             }
             return None;
         }
+
+        if try_name("area_rectangle") {
+            let w = param(&q, "w").or_else(|| param(&q, "width"))?;
+            let h = param(&q, "h").or_else(|| param(&q, "height"))?;
+            return Some(tag("area_rectangle", "formula", format!("area_rectangle: A=w·h={w}·{h}={}", w * h)));
+        }
+        if try_name("area_triangle") {
+            let b = param(&q, "b").or_else(|| param(&q, "base"))?;
+            let h = param(&q, "h").or_else(|| param(&q, "height"))?;
+            return Some(tag("area_triangle", "formula", format!("area_triangle: A=½bh=0.5·{b}·{h}={}", 0.5 * b * h)));
+        }
+        if try_name("volume_cylinder") {
+            let r = param(&q, "r").or_else(|| param(&q, "radius"))?;
+            let h = param(&q, "h").or_else(|| param(&q, "height"))?;
+            let v = std::f64::consts::PI * r * r * h;
+            return Some(tag("volume_cylinder", "formula", format!("volume_cylinder: V=πr²h={v}")));
+        }
+        if try_name("potential_energy") {
+            let m = param(&q, "m").or_else(|| param(&q, "mass"))?;
+            let g = param(&q, "g").unwrap_or(9.80665);
+            let h = param(&q, "h").or_else(|| param(&q, "height"))?;
+            return Some(tag("potential_energy", "formula", format!("potential_energy: PE=mgh={m}·{g}·{h}={}", m * g * h)));
+        }
+        if try_name("centripetal_accel") {
+            let v = param(&q, "v").or_else(|| param(&q, "speed"))?;
+            let r = param(&q, "r").or_else(|| param(&q, "radius"))?;
+            if r == 0.0 { return None; }
+            return Some(tag("centripetal_accel", "formula", format!("centripetal_accel: a=v²/r={}/{r}={}", v * v, v * v / r)));
+        }
+        if try_name("bmi_formula") {
+            let kg = param(&q, "kg").or_else(|| param(&q, "mass")).or_else(|| param(&q, "m"))?;
+            let m = param(&q, "m_height").or_else(|| param(&q, "height")).or_else(|| param(&q, "h"))?;
+            if m == 0.0 { return None; }
+            return Some(tag("bmi_formula", "formula", format!("bmi_formula: BMI={kg}/{m}²={}", kg / (m * m))));
+        }
+        if try_name("abs_f64") {
+            let x = param(&q, "x").or_else(|| param(&q, "a"))?;
+            return Some(tag("abs_f64", "formula", format!("abs_f64: |{x}|={}", x.abs())));
+        }
+        if try_name("log2_f64") {
+            let x = param(&q, "x").or_else(|| param(&q, "a"))?;
+            if x <= 0.0 { return None; }
+            return Some(tag("log2_f64", "formula", format!("log2_f64: log2({x})={}", x.log2())));
+        }
+        if try_name("exp_f64") {
+            let x = param(&q, "x").or_else(|| param(&q, "a"))?;
+            return Some(tag("exp_f64", "formula", format!("exp_f64: e^{x}={}", x.exp())));
+        }
+        if try_name("relative_error") {
+            let approx = param(&q, "approx").or_else(|| param(&q, "a"))?;
+            let truth = param(&q, "true").or_else(|| param(&q, "t")).or_else(|| param(&q, "exact"))?;
+            if truth == 0.0 { return None; }
+            let e = (approx - truth).abs() / truth.abs();
+            return Some(tag("relative_error", "formula", format!("relative_error: |{approx}-{truth}|/|{truth}|={e}")));
+        }
+        if try_name("wien_peak") {
+            let t = param(&q, "t").or_else(|| param(&q, "temp")).or_else(|| param(&q, "kelvin"))?;
+            if t <= 0.0 { return None; }
+            const B: f64 = 2.897771955e-3; // m·K
+            let lam = B / t;
+            return Some(tag("wien_peak", "formula", format!("wien_peak: λ_max=b/T={B}/{t}={lam} m")));
+        }
+        if try_name("reynolds_number") {
+            let rho = param(&q, "rho").or_else(|| param(&q, "density"))?;
+            let v = param(&q, "v").or_else(|| param(&q, "speed"))?;
+            let l = param(&q, "l").or_else(|| param(&q, "length")).or_else(|| param(&q, "L"))?;
+            let mu = param(&q, "mu").or_else(|| param(&q, "viscosity"))?;
+            if mu == 0.0 { return None; }
+            let re = rho * v * l / mu;
+            return Some(tag("reynolds_number", "formula", format!("reynolds_number: Re=ρvL/μ={re}")));
+        }
+        if try_name("escape_velocity") {
+            let g = param(&q, "gm").or_else(|| param(&q, "mu")).or_else(|| param(&q, "GM"))?;
+            let r = param(&q, "r").or_else(|| param(&q, "radius"))?;
+            if r <= 0.0 { return None; }
+            let v = (2.0 * g / r).sqrt();
+            return Some(tag("escape_velocity", "formula", format!("escape_velocity: v_esc=sqrt(2GM/r)={v}")));
+        }
+        if try_name("circular_period") {
+            let g = param(&q, "gm").or_else(|| param(&q, "mu")).or_else(|| param(&q, "GM"))?;
+            let r = param(&q, "r").or_else(|| param(&q, "radius"))?;
+            if g <= 0.0 || r <= 0.0 { return None; }
+            let t = 2.0 * std::f64::consts::PI * (r * r * r / g).sqrt();
+            return Some(tag("circular_period", "formula", format!("circular_period: T=2π√(r³/GM)={t}")));
+        }
+        if try_name("binomial_coeff") {
+            let n = param(&q, "n")? as u64;
+            let k = param(&q, "k")? as u64;
+            if n > 66 || k > n { return None; }
+            let mut c: u128 = 1;
+            let kk = k.min(n - k);
+            for i in 0..kk {
+                c = c * (n - i) as u128 / (i + 1) as u128;
+            }
+            return Some(tag("binomial_coeff", "formula", format!("binomial_coeff: C({n},{k})={c}")));
+        }
         None
     }
 }
@@ -934,6 +1030,128 @@ impl CatalogLookup {
                 s.to_string()
             };
             return Some(tag("csv_field", "lookup", format!("csv_field: {out}")));
+        }
+        
+        if try_name("str_starts_with") {
+            let s = param_str(query, "s").or_else(|| param_str(query, "text"))?;
+            let p = param_str(query, "prefix").or_else(|| param_str(query, "p"))?;
+            return Some(tag("str_starts_with", "lookup", format!("str_starts_with: {} → {}", p, s.starts_with(p))));
+        }
+        if try_name("str_ends_with") {
+            let s = param_str(query, "s").or_else(|| param_str(query, "text"))?;
+            let p = param_str(query, "suffix").or_else(|| param_str(query, "p"))?;
+            return Some(tag("str_ends_with", "lookup", format!("str_ends_with: {} → {}", p, s.ends_with(p))));
+        }
+        if try_name("str_replace") {
+            let s = param_str(query, "s").or_else(|| param_str(query, "text"))?;
+            let old = param_str(query, "old").or_else(|| param_str(query, "from"))?;
+            let new = param_str(query, "new").or_else(|| param_str(query, "to")).unwrap_or("");
+            let out = s.replacen(old, new, 1);
+            return Some(tag("str_replace", "lookup", format!("str_replace: \"{out}\"")));
+        }
+        if try_name("bool_nor") {
+            let a = parse_bool_token(param_str(query, "a")?)?;
+            let b = parse_bool_token(param_str(query, "b")?)?;
+            return Some(tag("bool_nor", "lookup", format!("bool_nor: ¬({a} ∨ {b}) → {}", !(a || b))));
+        }
+        if try_name("bool_xnor") {
+            let a = parse_bool_token(param_str(query, "a")?)?;
+            let b = parse_bool_token(param_str(query, "b")?)?;
+            return Some(tag("bool_xnor", "lookup", format!("bool_xnor: {a} ⊙ {b} → {}", a == b)));
+        }
+        if try_name("bit_and") || try_name("bit_or") || try_name("bit_xor") {
+            let a = param(&q, "a").or_else(|| param(&q, "x"))? as u64;
+            let b = param(&q, "b").or_else(|| param(&q, "y"))? as u64;
+            let (name, v) = if try_name("bit_and") {
+                ("bit_and", a & b)
+            } else if try_name("bit_or") {
+                ("bit_or", a | b)
+            } else {
+                ("bit_xor", a ^ b)
+            };
+            return Some(tag(name, "lookup", format!("{name}: {a} ∘ {b} → {v}")));
+        }
+        if try_name("bit_shl") {
+            let a = param(&q, "a").or_else(|| param(&q, "x"))? as u64;
+            let n = param(&q, "n").or_else(|| param(&q, "shift"))? as u32;
+            if n >= 64 { return None; }
+            return Some(tag("bit_shl", "lookup", format!("bit_shl: {a} << {n} → {}", a << n)));
+        }
+        if try_name("bit_shr") {
+            let a = param(&q, "a").or_else(|| param(&q, "x"))? as u64;
+            let n = param(&q, "n").or_else(|| param(&q, "shift"))? as u32;
+            if n >= 64 { return None; }
+            return Some(tag("bit_shr", "lookup", format!("bit_shr: {a} >> {n} → {}", a >> n)));
+        }
+        if try_name("is_hex") {
+            let s = param_str(query, "s").or_else(|| param_str(query, "hex")).or_else(|| param_str(query, "x"))?;
+            let ok = !s.is_empty() && s.bytes().all(|b| b.is_ascii_hexdigit());
+            return Some(tag("is_hex", "lookup", format!("is_hex: \"{s}\" → {ok}")));
+        }
+        if try_name("html_escape") {
+            let s = param_str(query, "s").or_else(|| param_str(query, "text"))?;
+            let out = s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;");
+            return Some(tag("html_escape", "lookup", format!("html_escape: {out}")));
+        }
+        if try_name("path_ext") {
+            let p = param_str(query, "path").or_else(|| param_str(query, "p")).or_else(|| param_str(query, "s"))?;
+            let ext = std::path::Path::new(p).extension().and_then(|e| e.to_str()).unwrap_or("");
+            return Some(tag("path_ext", "lookup", format!("path_ext: \"{p}\" → \"{ext}\"")));
+        }
+        if try_name("path_basename") {
+            let p = param_str(query, "path").or_else(|| param_str(query, "p")).or_else(|| param_str(query, "s"))?;
+            let base = std::path::Path::new(p).file_name().and_then(|e| e.to_str()).unwrap_or(p);
+            return Some(tag("path_basename", "lookup", format!("path_basename: \"{p}\" → \"{base}\"")));
+        }
+        if try_name("color_hex_rgb") {
+            let s = param_str(query, "hex").or_else(|| param_str(query, "color")).or_else(|| param_str(query, "s"))?;
+            let h = s.trim().trim_start_matches('#');
+            if h.len() != 6 || !h.bytes().all(|b| b.is_ascii_hexdigit()) { return None; }
+            let r = u8::from_str_radix(&h[0..2], 16).ok()?;
+            let g = u8::from_str_radix(&h[2..4], 16).ok()?;
+            let b = u8::from_str_radix(&h[4..6], 16).ok()?;
+            return Some(tag("color_hex_rgb", "lookup", format!("color_hex_rgb: #{h} → rgb({r},{g},{b})")));
+        }
+        if try_name("ipv4_ok") {
+            let s = param_str(query, "ip").or_else(|| param_str(query, "s")).or_else(|| param_str(query, "addr"))?;
+            let parts: Vec<_> = s.split('.').collect();
+            let ok = parts.len() == 4 && parts.iter().all(|p| p.parse::<u8>().is_ok());
+            return Some(tag("ipv4_ok", "lookup", format!("ipv4_ok: \"{s}\" → {ok}")));
+        }
+        if try_name("is_blank") {
+            let s = param_str(query, "s").or_else(|| param_str(query, "text")).unwrap_or("");
+            let ok = s.chars().all(|c| c.is_whitespace());
+            return Some(tag("is_blank", "lookup", format!("is_blank: → {ok}")));
+        }
+        if try_name("json_escape") {
+            let s = param_str(query, "s").or_else(|| param_str(query, "text"))?;
+            let mut out = String::from('"');
+            for c in s.chars() {
+                match c {
+                    '"' => out.push_str("\\\""),
+                    '\\' => out.push_str("\\\\"),
+                    '\n' => out.push_str("\\n"),
+                    '\r' => out.push_str("\\r"),
+                    '\t' => out.push_str("\\t"),
+                    c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
+                    c => out.push(c),
+                }
+            }
+            out.push('"');
+            return Some(tag("json_escape", "lookup", format!("json_escape: {out}")));
+        }
+        if try_name("mime_is_text") {
+            let m = param_str(query, "mime").or_else(|| param_str(query, "type")).or_else(|| param_str(query, "s"))?;
+            let ok = m.to_ascii_lowercase().starts_with("text/");
+            return Some(tag("mime_is_text", "lookup", format!("mime_is_text: \"{m}\" → {ok}")));
+        }
+        if try_name("miles_to_km") {
+            if let Some(mi) = param(&q, "mi").or_else(|| param(&q, "miles")) {
+                return Some(tag("miles_to_km", "lookup", format!("miles_to_km: {mi} mi = {} km", mi * 1.609344)));
+            }
+            if let Some(km) = param(&q, "km").or_else(|| param(&q, "kilometers")) {
+                return Some(tag("miles_to_km", "lookup", format!("km_to_miles: {km} km = {} mi", km / 1.609344)));
+            }
         }
         None
     }
@@ -1365,6 +1583,169 @@ impl CatalogSolver {
             }
             return Some(tag("lcp_strings", "solver", format!("lcp_strings: \"{prefix}\"")));
         }
+
+        if try_name("sum_f64") {
+            let xs = list_f64(&q, "xs").or_else(|| list_f64(&q, "values"))?;
+            let s = xs.iter().sum::<f64>();
+            return Some(tag("sum_f64", "solver", format!("sum_f64: {s}")));
+        }
+        if try_name("product_f64") {
+            let xs = list_f64(&q, "xs").or_else(|| list_f64(&q, "values"))?;
+            let p = xs.iter().fold(1.0, |a, b| a * b);
+            return Some(tag("product_f64", "solver", format!("product_f64: {p}")));
+        }
+        if try_name("min_f64") {
+            let xs = list_f64(&q, "xs").or_else(|| list_f64(&q, "values"))?;
+            let m = xs.iter().cloned().fold(f64::INFINITY, f64::min);
+            return Some(tag("min_f64", "solver", format!("min_f64: {m}")));
+        }
+        if try_name("max_f64") {
+            let xs = list_f64(&q, "xs").or_else(|| list_f64(&q, "values"))?;
+            let m = xs.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+            return Some(tag("max_f64", "solver", format!("max_f64: {m}")));
+        }
+        if try_name("factorial_u64") {
+            let n = param(&q, "n")? as u64;
+            if n > 20 { return None; }
+            let mut f: u64 = 1;
+            for i in 2..=n { f = f.saturating_mul(i); }
+            return Some(tag("factorial_u64", "solver", format!("factorial_u64: {n}!={f}")));
+        }
+        if try_name("lcs_length") {
+            let a = param_str(query, "a").or_else(|| param_str(query, "s1"))?;
+            let b = param_str(query, "b").or_else(|| param_str(query, "s2"))?;
+            let aa: Vec<char> = a.chars().collect();
+            let bb: Vec<char> = b.chars().collect();
+            let mut prev = vec![0usize; bb.len() + 1];
+            let mut cur = vec![0usize; bb.len() + 1];
+            for i in 1..=aa.len() {
+                for j in 1..=bb.len() {
+                    cur[j] = if aa[i - 1] == bb[j - 1] { prev[j - 1] + 1 } else { prev[j].max(cur[j - 1]) };
+                }
+                std::mem::swap(&mut prev, &mut cur);
+                cur.fill(0);
+            }
+            return Some(tag("lcs_length", "solver", format!("lcs_length: {}", prev[bb.len()])));
+        }
+        if try_name("matrix_add_2x2") {
+            let a = list_f64(&q, "a")?;
+            let b = list_f64(&q, "b")?;
+            if a.len() != 4 || b.len() != 4 { return None; }
+            let c: Vec<f64> = a.iter().zip(b.iter()).map(|(x, y)| x + y).collect();
+            return Some(tag("matrix_add_2x2", "solver", format!("matrix_add_2x2: [{},{},{},{}]", c[0], c[1], c[2], c[3])));
+        }
+        if try_name("inv_2x2") {
+            let a = list_f64(&q, "a").or_else(|| list_f64(&q, "m"))?;
+            if a.len() != 4 { return None; }
+            let det = a[0] * a[3] - a[1] * a[2];
+            if det.abs() < 1e-15 {
+                return Some(tag("inv_2x2", "solver", "inv_2x2: singular".into()));
+            }
+            let inv = [a[3] / det, -a[1] / det, -a[2] / det, a[0] / det];
+            return Some(tag("inv_2x2", "solver", format!("inv_2x2: [{},{},{},{}]", inv[0], inv[1], inv[2], inv[3])));
+        }
+        if try_name("cross_3d") {
+            let a = list_f64(&q, "a")?;
+            let b = list_f64(&q, "b")?;
+            if a.len() != 3 || b.len() != 3 { return None; }
+            let c = [
+                a[1] * b[2] - a[2] * b[1],
+                a[2] * b[0] - a[0] * b[2],
+                a[0] * b[1] - a[1] * b[0],
+            ];
+            return Some(tag("cross_3d", "solver", format!("cross_3d: [{},{},{}]", c[0], c[1], c[2])));
+        }
+        if try_name("pearson_corr") {
+            let xs = list_f64(&q, "x").or_else(|| list_f64(&q, "xs"))?;
+            let ys = list_f64(&q, "y").or_else(|| list_f64(&q, "ys"))?;
+            if xs.len() != ys.len() || xs.len() < 2 { return None; }
+            let n = xs.len() as f64;
+            let mx = xs.iter().sum::<f64>() / n;
+            let my = ys.iter().sum::<f64>() / n;
+            let mut num = 0.0;
+            let mut dx = 0.0;
+            let mut dy = 0.0;
+            for (x, y) in xs.iter().zip(ys.iter()) {
+                let a = x - mx;
+                let b = y - my;
+                num += a * b;
+                dx += a * a;
+                dy += b * b;
+            }
+            if dx == 0.0 || dy == 0.0 { return None; }
+            let r = num / (dx.sqrt() * dy.sqrt());
+            return Some(tag("pearson_corr", "solver", format!("pearson_corr: r={r}")));
+        }
+        if try_name("merge_sorted") {
+            let a = list_f64(&q, "a").or_else(|| list_f64(&q, "xs"))?;
+            let b = list_f64(&q, "b").or_else(|| list_f64(&q, "ys"))?;
+            let mut i = 0usize;
+            let mut j = 0usize;
+            let mut out = Vec::with_capacity(a.len() + b.len());
+            while i < a.len() && j < b.len() {
+                if a[i] <= b[j] { out.push(a[i]); i += 1; } else { out.push(b[j]); j += 1; }
+            }
+            out.extend_from_slice(&a[i..]);
+            out.extend_from_slice(&b[j..]);
+            return Some(tag("merge_sorted", "solver", format!("merge_sorted: {out:?}")));
+        }
+        if try_name("next_prime") {
+            let mut n = param(&q, "n").or_else(|| param(&q, "x"))? as u64;
+            if n <= 2 { return Some(tag("next_prime", "solver", "next_prime: 2".into())); }
+            if n % 2 == 0 { n += 1; }
+            'outer: loop {
+                let mut d = 3u64;
+                while d * d <= n {
+                    if n % d == 0 { n += 2; continue 'outer; }
+                    d += 2;
+                }
+                return Some(tag("next_prime", "solver", format!("next_prime: {n}")));
+            }
+        }
+        if try_name("combinations_u64") {
+            let n = param(&q, "n")? as u64;
+            let k = param(&q, "k")? as u64;
+            if n > 20 || k > n { return None; }
+            let mut p: u64 = 1;
+            for i in 0..k { p = p.saturating_mul(n - i); }
+            return Some(tag("combinations_u64", "solver", format!("combinations_u64: P({n},{k})={p}")));
+        }
+        if try_name("dfs_reach") {
+            // edges as pairs in flat list edges=[u,v,u,v,...]; start=; goal=
+            let edges = list_f64(&q, "edges")?;
+            let start = param(&q, "start").or_else(|| param(&q, "s"))? as i64;
+            let goal = param(&q, "goal").or_else(|| param(&q, "g")).or_else(|| param(&q, "t"))? as i64;
+            let mut adj: std::collections::BTreeMap<i64, Vec<i64>> = std::collections::BTreeMap::new();
+            for chunk in edges.chunks(2) {
+                if chunk.len() < 2 { break; }
+                let u = chunk[0] as i64;
+                let v = chunk[1] as i64;
+                adj.entry(u).or_default().push(v);
+                adj.entry(v).or_default().push(u);
+            }
+            let mut seen = BTreeSet::new();
+            let mut stack = vec![start];
+            while let Some(u) = stack.pop() {
+                if !seen.insert(u) { continue; }
+                if u == goal {
+                    return Some(tag("dfs_reach", "solver", format!("dfs_reach: {start}→{goal} reachable=true")));
+                }
+                if let Some(nei) = adj.get(&u) {
+                    for &v in nei { stack.push(v); }
+                }
+            }
+            return Some(tag("dfs_reach", "solver", format!("dfs_reach: {start}→{goal} reachable=false")));
+        }
+        if try_name("set_symmetric_diff") {
+            let a = list_str(query, "a").or_else(|| list_str(query, "xs"))?;
+            let b = list_str(query, "b").or_else(|| list_str(query, "ys"))?;
+            let sa: BTreeSet<_> = a.into_iter().collect();
+            let sb: BTreeSet<_> = b.into_iter().collect();
+            let mut out: Vec<_> = sa.symmetric_difference(&sb).cloned().collect();
+            out.sort();
+            return Some(tag("set_symmetric_diff", "solver", format!("set_symmetric_diff: {out:?}")));
+        }
+
         None
     }
 }
@@ -1420,7 +1801,7 @@ mod tests {
     #[test]
     fn live_counts_match_stack() {
         let s = PeriodicStack::subset();
-        assert!(s.live_gear_count() >= 120);
+        assert!(s.live_gear_count() >= 170);
         assert!(s.scale_note().contains("live catalog"));
     }
 }

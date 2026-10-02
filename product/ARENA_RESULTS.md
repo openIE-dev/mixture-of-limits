@@ -1,7 +1,7 @@
 # ARENA_RESULTS.md — soft-ref head-on scoreboard
 
 **Source:** actual `cargo run -p mol-cli -- arena` on this tree.  
-**When:** Fri Oct 02, 2026 08:44 AM EDT (America/New_York).
+**When:** Fri Oct 02, 2026 12:55 PM EDT (America/New_York).
 **Claim class:** soft-ref **Estimated** only — never invent `measured_j`. Estimates ≠ `measured_j`.  
 `board_synth_claimed=false`.
 

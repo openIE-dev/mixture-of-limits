@@ -5,7 +5,7 @@
 //! MCP-shaped JSON-RPC (`MOL_NI_CERTIFY_URL` / `MOL_WCA_CERTIFY_URL`) with
 //! in-crate fallback — no sibling path-deps. Optional features `openie-path` /
 //! `wca-path` / `jouledb-path` / `efa-path` / `klere-path` remain reserved;
-//! Ferric / FPGA Stage C meters stay stubs. Map: `BLUEPRINT.md` §path to MoL.
+//! Ferric / FPGA Stage C: soft-ref artifact inventory wired (`probe_stage_c`); meters stay stubs (`stage_c_measured=false`). Map: `BLUEPRINT.md` §path to MoL.
 
 #![deny(missing_docs)]
 
@@ -17,6 +17,7 @@ mod wca;
 mod ni_live;
 mod ni_http;
 mod model_last;
+mod fpga_stage_c;
 
 pub use efa::{
     live_efa_stub, EfaCertResult, EfaCertificatePort, EfaDecision, EfaProposal, StubEfaCertificate,
@@ -33,6 +34,10 @@ pub use ni_http::{
     certify_live_prefer_env, fallback_enabled, CertifyTransport, HttpNiCertify,
     LiveCertifyRequest, LiveCertifyResponse, ENV_CERTIFY_FALLBACK, ENV_CERTIFY_MODE,
     ENV_CERTIFY_TIMEOUT_MS, ENV_CERTIFY_TOKEN, ENV_NI_CERTIFY_URL, ENV_WCA_CERTIFY_URL,
+};
+pub use fpga_stage_c::{
+    certify_stage_c_soft, live_stage_c_meter_stub, probe_stage_c, StageCCertResult, StageCInventory,
+    ENV_OPENIE_FPGA_ROOT,
 };
 pub use model_last::{
     live_model_last_stub, model_last_from_endpoint, ModelLastPort, ModelLastProfile,

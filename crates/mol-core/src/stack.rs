@@ -813,6 +813,56 @@ const SUBSET_CELLS: &[StackPrimitive] = &[
     cell!(128, "unique_count", SortSearch, L1, Present, Solver, 1e-10, "Distinct element count (Solver)"),
     cell!(129, "paren_balance", ParseTransform, L0, Present, Solver, 5e-11, "Parenthesis balance check (Solver)"),
     cell!(130, "lcp_strings", StringMorph, L1, Present, Solver, 1e-10, "Longest common prefix (Solver)"),
+    cell!(131, "str_starts_with", StringMorph, L0, Present, Lookup, 5e-11, "Prefix predicate (Lookup)"),
+    cell!(132, "str_ends_with", StringMorph, L0, Present, Lookup, 5e-11, "Suffix predicate (Lookup)"),
+    cell!(133, "str_replace", StringMorph, L0, Present, Lookup, 5e-11, "Replace first needle (Lookup)"),
+    cell!(134, "bool_nor", Logic, L0, Present, Lookup, 1e-12, "Boolean NOR (Lookup)"),
+    cell!(135, "bool_xnor", Logic, L0, Present, Lookup, 1e-12, "Boolean XNOR (Lookup)"),
+    cell!(136, "bit_and", Logic, L0, Present, Lookup, 1e-12, "Bitwise AND u64 (Lookup)"),
+    cell!(137, "bit_or", Logic, L0, Present, Lookup, 1e-12, "Bitwise OR u64 (Lookup)"),
+    cell!(138, "bit_xor", Logic, L0, Present, Lookup, 1e-12, "Bitwise XOR u64 (Lookup)"),
+    cell!(139, "is_hex", Encode, L0, Present, Lookup, 5e-12, "Hex-string predicate (Lookup)"),
+    cell!(140, "html_escape", Encode, L0, Present, Lookup, 5e-11, "HTML entity escape (Lookup)"),
+    cell!(141, "path_ext", FileSystem, L0, Present, Lookup, 5e-11, "Path extension extract (Lookup)"),
+    cell!(142, "path_basename", FileSystem, L0, Present, Lookup, 5e-11, "Path basename extract (Lookup)"),
+    cell!(143, "color_hex_rgb", Lookup, L0, Present, Lookup, 5e-12, "Hex color → RGB (Lookup)"),
+    cell!(144, "ipv4_ok", Network, L0, Present, Lookup, 5e-11, "IPv4 dotted-quad validate (Lookup)"),
+    cell!(145, "is_blank", StringMorph, L0, Present, Lookup, 5e-12, "Whitespace-only predicate (Lookup)"),
+    cell!(146, "bit_shl", Logic, L0, Present, Lookup, 1e-12, "Bitwise shift-left u64 (Lookup)"),
+    cell!(147, "bit_shr", Logic, L0, Present, Lookup, 1e-12, "Bitwise shift-right u64 (Lookup)"),
+    cell!(148, "json_escape", Encode, L0, Present, Lookup, 5e-11, "JSON string escape (Lookup)"),
+    cell!(149, "mime_is_text", Lookup, L0, Present, Lookup, 1e-12, "MIME text/* predicate (Lookup)"),
+    cell!(150, "miles_to_km", UnitConvert, L0, Present, Lookup, 5e-12, "mi ↔ km (Lookup)"),
+    cell!(151, "area_rectangle", Geometry, L0, Present, Formula, 5e-12, "A = w·h (Formula)"),
+    cell!(152, "area_triangle", Geometry, L0, Present, Formula, 5e-12, "A = ½ b h (Formula)"),
+    cell!(153, "volume_cylinder", Geometry, L0, Present, Formula, 5e-12, "V = π r² h (Formula)"),
+    cell!(154, "potential_energy", Arithmetic, L0, Present, Formula, 5e-12, "PE = m g h (Formula)"),
+    cell!(155, "centripetal_accel", Arithmetic, L0, Present, Formula, 5e-12, "a = v² / r (Formula)"),
+    cell!(156, "bmi_formula", Arithmetic, L0, Present, Formula, 5e-12, "BMI = kg / m² (Formula)"),
+    cell!(157, "abs_f64", Arithmetic, L0, Present, Formula, 5e-12, "Absolute value (Formula)"),
+    cell!(158, "log2_f64", Arithmetic, L0, Present, Formula, 5e-12, "log₂(x) (Formula)"),
+    cell!(159, "exp_f64", Arithmetic, L0, Present, Formula, 5e-12, "e^x (Formula)"),
+    cell!(160, "relative_error", Arithmetic, L0, Present, Formula, 5e-12, "|approx-true|/|true| (Formula)"),
+    cell!(161, "wien_peak", Signal, L0, Present, Formula, 5e-12, "Wien λ_max = b/T (Formula)"),
+    cell!(162, "reynolds_number", Signal, L0, Present, Formula, 5e-12, "Re = ρ v L / μ (Formula)"),
+    cell!(163, "escape_velocity", Arithmetic, L0, Present, Formula, 5e-12, "v_esc = sqrt(2GM/r) (Formula)"),
+    cell!(164, "circular_period", Arithmetic, L0, Present, Formula, 5e-12, "T = 2π sqrt(r³/GM) (Formula)"),
+    cell!(165, "binomial_coeff", Probabilistic, L0, Present, Formula, 1e-11, "C(n,k) n≤66 (Formula)"),
+    cell!(166, "sum_f64", Statistics, L0, Present, Solver, 5e-12, "Sum of array (Solver)"),
+    cell!(167, "product_f64", Statistics, L0, Present, Solver, 5e-12, "Product of array (Solver)"),
+    cell!(168, "min_f64", Statistics, L0, Present, Solver, 5e-12, "Minimum of array (Solver)"),
+    cell!(169, "max_f64", Statistics, L0, Present, Solver, 5e-12, "Maximum of array (Solver)"),
+    cell!(170, "factorial_u64", Arithmetic, L0, Present, Solver, 5e-12, "n! for n≤20 (Solver)"),
+    cell!(171, "lcs_length", DiffPatch, L1, Present, Solver, 2e-8, "LCS length (Solver)"),
+    cell!(172, "matrix_add_2x2", LinearAlgebra, L0, Present, Solver, 5e-12, "2×2 matrix add (Solver)"),
+    cell!(173, "inv_2x2", LinearAlgebra, L0, Present, Solver, 1e-11, "2×2 inverse (Solver)"),
+    cell!(174, "cross_3d", LinearAlgebra, L0, Present, Solver, 5e-12, "3D cross product (Solver)"),
+    cell!(175, "pearson_corr", Statistics, L1, Present, Solver, 1e-10, "Pearson r (Solver)"),
+    cell!(176, "merge_sorted", SortSearch, L1, Present, Solver, 1e-10, "Merge two sorted lists (Solver)"),
+    cell!(177, "next_prime", Arithmetic, L0, Present, Solver, 5e-11, "Next prime ≥ n (Solver)"),
+    cell!(178, "combinations_u64", Arithmetic, L0, Present, Solver, 5e-12, "P(n,k)=n!/(n-k)! n≤20 (Solver)"),
+    cell!(179, "dfs_reach", Graph, L1, Present, Solver, 5e-8, "Tiny DFS reachability (Solver)"),
+    cell!(180, "set_symmetric_diff", SetOps, L1, Present, Solver, 2e-9, "Symmetric difference (Solver)"),
     cell!(200, "physical_settle", Optimization, L1, Gap, None, 0.0, "Reserved QI/thermo settle-certify cell — not wired as silicon"),
     cell!(201, "reversible_rewrite", Arithmetic, L0, Gap, None, 0.0, "Reversible / adiabatic rewrite primitive — empty cell"),
     cell!(202, "ising_bind", Optimization, L1, Gap, None, 0.0, "Energy-function / Ising bind — empty cell"),
@@ -831,10 +881,10 @@ mod tests {
     #[test]
     fn live_catalog_honesty() {
         let s = PeriodicStack::subset();
-        assert!(s.live_gear_count() >= 120, "live gears={}", s.live_gear_count());
-        assert!(s.live_gear_count_of(GearKind::Lookup) >= 40);
-        assert!(s.live_gear_count_of(GearKind::Formula) >= 35);
-        assert!(s.live_gear_count_of(GearKind::Solver) >= 35);
+        assert!(s.live_gear_count() >= 170, "live gears={}", s.live_gear_count());
+        assert!(s.live_gear_count_of(GearKind::Lookup) >= 55);
+        assert!(s.live_gear_count_of(GearKind::Formula) >= 45);
+        assert!(s.live_gear_count_of(GearKind::Solver) >= 45);
         assert!(s.placeholder_present_count() <= 5, "few placeholders only");
         assert!(s.gap_count() >= 5);
         assert!(s.scale_note().contains("live catalog"));
@@ -862,10 +912,10 @@ mod tests {
         let s = PeriodicStack::subset();
         assert_eq!(FULL_TARGET_PRIMITIVES, 258);
         assert_eq!(FULL_TARGET_FAMILIES, 33);
-        assert!(s.present_count() >= 120, "expanded live present={}", s.present_count());
-        assert!(s.live_gear_count() >= 120);
+        assert!(s.present_count() >= 170, "expanded live present={}", s.present_count());
+        assert!(s.live_gear_count() >= 170);
         assert!(s.gap_count() >= 4);
-        assert!(s.remaining_to_full() > 100, "remain={}", s.remaining_to_full());
+        assert!(s.remaining_to_full() > 50, "remain={}", s.remaining_to_full());
         assert!(s.scale_note().contains("258"));
     }
 
