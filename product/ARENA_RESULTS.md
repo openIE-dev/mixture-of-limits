@@ -1,7 +1,7 @@
 # ARENA_RESULTS.md — soft-ref head-on scoreboard
 
 **Source:** actual `cargo run -p mol-cli -- arena` on this tree.  
-**When:** Fri Oct 02, 2026 08:04 AM EDT (America/New_York).  
+**When:** Fri Oct 02, 2026 08:35 AM EDT (America/New_York).  
 **Claim class:** soft-ref **Estimated** only — never invent `measured_j`. Estimates ≠ `measured_j`.  
 `board_synth_claimed=false`.
 
@@ -9,7 +9,7 @@
 
 | Strategy | correct_close | refuse_when_C=1 | mean estimated_j | mean wall_us | commits | refuses |
 |---|---|---|---|---|---|---|
-| **mol_cascade** | **36/36 (100%)** | **5/5 (100%)** | **~2.1e-11** | ~28 | 28 | 8 |
+| **mol_cascade** | **36/36 (100%)** | **5/5 (100%)** | **~2.07e-11** | ~168 | 28 | 8 |
 | frontier_sim | 28/36 (78%) | 0/5 (0%) | 5.0e-1 | ~24 | 36 | 0 |
 | system_one_leaf | 28/36 (78%) | 0/5 (0%) | 2.5e-4 | ~1 | 36 | 0 |
 

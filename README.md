@@ -107,15 +107,15 @@ cargo test --workspace
 cargo run -p mol-cli -- prove
 ```
 
-`mol prove` checks: deterministic close, formula/lookup without model, VoI refuse, settle commit+refuse, EFA diverge refuse, capability default-deny mutate, receipt honesty (`measured_j=None`, `board_synth=false`, estimate labeled, `mu_source=catalog`), `ModelGenerated` ↛ `Deterministic`, Periodic Stack navigation, primitive_gap probe, **μ/impedance catalog** (`E≈θ·μ`), **receipt transcript replay** (no model), Z2 cite + Z1 compose, **agent mailbox loop** (Goal/Message/Act → close → transcript; model cold), **bitemporal state+memory**, **desktop shell headless** (joule ledger / receipt view), and **OS meter honesty** (never invent `measured_j`). See [PLAN.md](./PLAN.md).
+`mol prove` checks: deterministic close, formula/lookup without model, VoI refuse, settle commit+refuse, EFA diverge refuse, capability default-deny mutate, receipt honesty (`measured_j=None`, `board_synth=false`, estimate labeled, `mu_source=catalog`), `ModelGenerated` ↛ `Deterministic`, Periodic Stack live-catalog navigation, live Lookup/Formula/Solver gear samples, primitive_gap probe, **μ/impedance catalog** (`E≈θ·μ`), **receipt transcript replay** (no model), Z2 cite + Z1 compose, **agent mailbox loop** (Goal/Message/Act → close → transcript; model cold), **bitemporal state+memory**, **desktop shell headless** (joule ledger / receipt view), and **OS meter honesty** (never invent `measured_j`). See [PLAN.md](./PLAN.md).
 
 Optional `fabric-detect` (wgpu) and `energy-meter`/`os-meter` (Linux RAPL/powercap; Tier-1 NVML via `nvidia-smi` power.draw×window or energy.consumed delta; macOS IOReport rails + SMC PSTR package, or root powermetrics) are feature-gated. Soft-ref prove keeps `measured_j=None`. A failed or VM probe stays `unavailable` and never invents numbers (utilization % never becomes joules). See `mol meter` and product acceptance A13. Details: [docs/tier1-os-meters.md](./docs/tier1-os-meters.md).
 
-Live silicon / RAPL / Ferric EFA hardware / klere-vm FPGA / openie-path / WCA MCP / full 258 live catalog are **OUT OF PROOF SCOPE**. In-tree Periodic Stack **subset** navigator + registry `primitive_gap` + soft-ref **multi-fabric routing** (`mol-core::fabric`) are **in proof**. Ferric (github.com/dcharlot-physicalai-bmi/ferric) is reference semantics only — not path-dep'd.
+Live silicon / RAPL / Ferric EFA hardware / klere-vm FPGA / openie-path / WCA MCP / remaining ~168/258 thesis primitives are **OUT OF PROOF SCOPE**. In-tree Periodic Stack **live catalog** (~89 Present / ≥80 live Lookup·Formula·Solver gears + Gap markers) + registry `primitive_gap` + soft-ref **multi-fabric routing** (`mol-core::fabric`) are **in proof**. Ferric (github.com/dcharlot-physicalai-bmi/ferric) is reference semantics only — not path-dep'd.
 
 ## Gaps still stub
 
-Live `openie-path` ask, WCA MCP, Ferric/on-device EFA certificate, klere-vm/FPGA meter, full 258 live catalog / μ calib. Default build is standalone (subset stack navigator in-tree).
+Live `openie-path` ask, WCA MCP, Ferric/on-device EFA certificate, klere-vm/FPGA meter, remaining thesis primitives toward 258 + μ calib corpus. Default build ships growing live catalog (honest counts in `scale_note` / `mol prove`).
 
 ---
 

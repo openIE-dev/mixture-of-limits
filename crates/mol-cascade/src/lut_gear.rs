@@ -7,6 +7,7 @@ use mol_core::{CascadeTier, MolError, MolRequest, QueryKind, Result};
 use crate::bloom::ResolutionLut;
 use crate::distill::DistillStore;
 use crate::grammar::{GrammarCoverage, TierAnswer};
+use crate::catalog_gear::CatalogLookup;
 use crate::tiers::UnitLookup;
 
 /// Support-desk / risk-band O(1) Bloom+HashMap Lookup gear.
@@ -72,6 +73,8 @@ pub struct CompositeLookup {
     pub ticket: TicketResolutionLookup,
     /// Unit / stack navigator.
     pub units: UnitLookup,
+    /// Live Periodic Stack Lookup catalog.
+    pub catalog: CatalogLookup,
     /// Optional certified Model LAST → Lookup distill registry.
     pub distilled: Option<DistillStore>,
 }
@@ -81,6 +84,7 @@ impl Default for CompositeLookup {
         Self {
             ticket: TicketResolutionLookup::default(),
             units: UnitLookup,
+            catalog: CatalogLookup,
             distilled: None,
         }
     }
@@ -107,7 +111,7 @@ impl GrammarCoverage for CompositeLookup {
                 }
             }
         }
-        self.ticket.covers(req) || self.units.covers(req)
+        self.ticket.covers(req) || self.catalog.covers(req) || self.units.covers(req)
     }
 
     fn try_answer(&self, req: &MolRequest) -> Result<TierAnswer> {
@@ -123,6 +127,13 @@ impl GrammarCoverage for CompositeLookup {
         }
         if self.ticket.covers(req) {
             match self.ticket.try_answer(req) {
+                Ok(a) => return Ok(a),
+                Err(MolError::NotCovered(_)) => {}
+                Err(e) => return Err(e),
+            }
+        }
+        if self.catalog.covers(req) {
+            match self.catalog.try_answer(req) {
                 Ok(a) => return Ok(a),
                 Err(MolError::NotCovered(_)) => {}
                 Err(e) => return Err(e),

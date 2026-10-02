@@ -112,8 +112,8 @@ pub use replay::{
 };
 pub use request::{FailClosedPolicy, MolRequest, QueryKind};
 pub use stack::{
-    CellStatus, PeriodicStack, ProbeResult, StackFamily, StackPrimitive, FULL_TARGET_FAMILIES,
-    FULL_TARGET_PRIMITIVES,
+    CellStatus, GearKind, PeriodicStack, ProbeResult, StackFamily, StackPrimitive,
+    FULL_TARGET_FAMILIES, FULL_TARGET_PRIMITIVES,
 };
 pub use tier::{CascadeTier, OpenIeZone, ThermoClass};
 pub use voi::{ValueOfInformation, VoiDecision};

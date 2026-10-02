@@ -209,6 +209,45 @@ impl CellStatus {
     }
 }
 
+
+/// Which cascade gear can **live-execute** this Present cell (soft-ref).
+///
+/// `None` = name-only placeholder / residual (navigate ok; no Lookup/Formula/Solver close).
+/// Live catalog honesty: only cells with a non-`None` gear count as executable entries
+/// toward the 258 thesis table — never claim full coverage.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GearKind {
+    /// O(1) table / unit / boolean / hash Lookup.
+    Lookup,
+    /// Closed-form Formula.
+    Formula,
+    /// Deterministic Solver (linear / search / settle / combinatorial).
+    Solver,
+    /// Stack navigate / scale meta (Lookup-priced).
+    Navigate,
+    /// Named Present without a live gear close (placeholder).
+    None,
+}
+
+impl GearKind {
+    /// Snake label.
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Lookup => "lookup",
+            Self::Formula => "formula",
+            Self::Solver => "solver",
+            Self::Navigate => "navigate",
+            Self::None => "none",
+        }
+    }
+
+    /// True when this cell can close at Lookup/Formula/Solver (not placeholder).
+    pub const fn is_live(self) -> bool {
+        matches!(self, Self::Lookup | Self::Formula | Self::Solver | Self::Navigate)
+    }
+}
+
 /// One cell in the in-tree Periodic Stack subset.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct StackPrimitive {
@@ -222,6 +261,8 @@ pub struct StackPrimitive {
     pub thermo: ThermoClass,
     /// Present vs Gap marker.
     pub status: CellStatus,
+    /// Live cascade gear binding (None = placeholder name only).
+    pub gear: GearKind,
     /// Order-of-magnitude estimated joules (catalog surrogate; ≠ measured).
     pub estimated_j_oom: f64,
     /// One-line description.
@@ -279,15 +320,15 @@ impl PeriodicStack {
     /// Scale note vs full thesis table.
     pub fn scale_note(&self) -> String {
         format!(
-            "Periodic Stack subset navigator: {} families (all {}), \
-             {} seeded cells ({} present, {} gap markers). \
-             Full thesis table: {} primitives / {} families (compute.openie.dev). \
-             Subset does not claim full 258 coverage; Gap cells refuse via primitive_gap.",
+            "Periodic Stack live catalog: {} families (all {});              {} seeded ({} present, {} gap); {} live Lookup/Formula/Solver/Navigate gears              ({} placeholder Present; {} toward 258 remain).              Full thesis: {} primitives / {} families (compute.openie.dev).              Live ≠ full 258; Gap cells refuse via primitive_gap; estimates≠measured_j.",
             FULL_TARGET_FAMILIES,
             FULL_TARGET_FAMILIES,
             self.seeded_count(),
             self.present_count(),
             self.gap_count(),
+            self.live_gear_count(),
+            self.placeholder_present_count(),
+            self.remaining_to_full(),
             FULL_TARGET_PRIMITIVES,
             FULL_TARGET_FAMILIES,
         )
@@ -317,6 +358,37 @@ impl PeriodicStack {
     /// How many Present slots remain toward the 258 thesis target.
     pub fn remaining_to_full(&self) -> usize {
         FULL_TARGET_PRIMITIVES.saturating_sub(self.present_count())
+    }
+
+    /// Present cells with a live Lookup/Formula/Solver/Navigate gear (not placeholders).
+    pub fn live_gear_count(&self) -> usize {
+        self.cells
+            .iter()
+            .filter(|c| c.status == CellStatus::Present && c.gear.is_live())
+            .count()
+    }
+
+    /// Present cells that are name-only placeholders (gear=None).
+    pub fn placeholder_present_count(&self) -> usize {
+        self.cells
+            .iter()
+            .filter(|c| c.status == CellStatus::Present && c.gear == GearKind::None)
+            .count()
+    }
+
+    /// Live Present cells bound to a specific gear.
+    pub fn live_gear_count_of(&self, gear: GearKind) -> usize {
+        self.cells
+            .iter()
+            .filter(|c| c.status == CellStatus::Present && c.gear == gear)
+            .count()
+    }
+
+    /// Iterate live Present cells (executable gears only).
+    pub fn live_cells(&self) -> impl Iterator<Item = &StackPrimitive> {
+        self.cells
+            .iter()
+            .filter(|c| c.status == CellStatus::Present && c.gear.is_live())
     }
 
     /// Iterate all seeded cells.
@@ -593,115 +665,148 @@ fn gap_or_stack_vocab(lower: &str) -> bool {
 }
 
 macro_rules! cell {
-    ($id:expr, $name:expr, $fam:expr, $th:expr, $st:expr, $j:expr, $desc:expr) => {
+    ($id:expr, $name:expr, $fam:ident, $th:ident, $st:ident, $gear:ident, $j:expr, $desc:expr) => {
         StackPrimitive {
             id: $id,
             name: $name,
-            family: $fam,
-            thermo: $th,
-            status: $st,
+            family: StackFamily::$fam,
+            thermo: ThermoClass::$th,
+            status: CellStatus::$st,
+            gear: GearKind::$gear,
             estimated_j_oom: $j,
             description: $desc,
         }
     };
 }
 
-/// Compact subset: ≥1 representative Present per family where MoL has a hook,
-/// plus explicit Gap markers (QI/thermo empty cells).
-const SUBSET_CELLS: &[StackPrimitive] = &{
-    use CellStatus::*;
-    use StackFamily::*;
-    use ThermoClass::*;
-    [
-        // --- Present (representative; MoL gears / honesty hooks) ---
-        cell!(1, "add_f64", Arithmetic, L0, Present, 5e-12, "IEEE-754 add (representative)"),
-        cell!(2, "landauer_bit", Arithmetic, L0, Present, 1e-12, "Landauer E_min = k_B T ln2 (Formula)"),
-        cell!(3, "tokenize", ParseTransform, L1, Present, 1e-9, "Lexical scan (representative)"),
-        cell!(4, "bool_and", Logic, L0, Present, 1e-12, "Boolean AND"),
-        cell!(5, "dict_lookup", Lookup, L1, Present, 1e-9, "Hash-map get / LUT sense"),
-        cell!(6, "cite_format", Retrieval, L1, Present, 2e-10, "Format citation string"),
-        cell!(7, "schema_check", Constraint, L1, Present, 1e-9, "Schema / type check"),
-        cell!(8, "hash_fnv1a", HashDigest, L0, Present, 5e-11, "FNV-1a 64-bit"),
-        cell!(9, "json_encode", Encode, L1, Present, 2e-9, "JSON encode"),
-        cell!(10, "route_zone", Control, L1, Present, 1e-10, "Zone router decision"),
-        cell!(11, "template_fill", Generative, L2, Present, 1e-7, "Ungrounded template fill (residual)"),
-        cell!(12, "hdc_bind", Hdc, L1, Present, 5e-9, "HDC bind"),
-        cell!(13, "sha256", Crypto, L1, Present, 4e-9, "SHA-256 digest"),
-        cell!(14, "stdout_write", Io, L1, Present, 1e-8, "Write receipt / answer"),
-        cell!(15, "bfs", Graph, L1, Present, 5e-8, "Breadth-first search"),
-        cell!(16, "solve_2x2", LinearAlgebra, L1, Present, 1e-9, "Dense 2×2 solve (Solver)"),
-        cell!(17, "dist_euclid_2d", Geometry, L0, Present, 5e-12, "2D Euclidean distance"),
-        cell!(18, "mean_f64", Statistics, L1, Present, 1e-10, "Arithmetic mean"),
-        cell!(19, "moving_avg", Signal, L1, Present, 5e-10, "Moving average"),
-        cell!(20, "rle_encode", Compression, L1, Present, 2e-9, "Run-length encode"),
-        cell!(21, "binary_search", SortSearch, L0, Present, 5e-11, "Binary search"),
-        cell!(22, "bst_lookup", Tree, L1, Present, 1e-9, "BST lookup"),
-        cell!(23, "dfa_step", FiniteState, L0, Present, 2e-12, "DFA transition"),
-        cell!(24, "type_check_expr", TypeCheck, L1, Present, 1e-9, "Expression type check"),
-        cell!(25, "edit_distance", DiffPatch, L1, Present, 2e-8, "Levenshtein distance"),
-        cell!(26, "interval_intersect", Temporal, L0, Present, 5e-12, "Interval intersection"),
-        cell!(27, "celsius_to_fahrenheit", UnitConvert, L0, Present, 5e-12, "C → F (Lookup)"),
-        cell!(28, "str_reverse", StringMorph, L0, Present, 5e-11, "Reverse string"),
-        cell!(29, "set_union", SetOps, L1, Present, 2e-9, "Set union"),
-        cell!(30, "entropy_bits", Probabilistic, L1, Present, 3e-10, "Shannon entropy (bits)"),
-        cell!(31, "argmin", Optimization, L1, Present, 2e-10, "Argmin over array"),
-        cell!(32, "url_join", Network, L0, Present, 5e-11, "Join URL parts"),
-        cell!(33, "fs_exists", FileSystem, L1, Present, 1e-7, "Path exists check (sandboxed)"),
-        cell!(34, "auto_emit_receipt", Automation, L1, Present, 1e-9, "Emit automation receipt"),
-        cell!(35, "ternary_settle", Control, L1, Present, 1e-9, "Klere-style ternary settle (Solver)"),
-        cell!(36, "shannon_capacity", Probabilistic, L0, Present, 5e-12, "C = B log2(1+SNR) (Formula)"),
-        // --- Gap markers (empty cells; primitive_gap) ---
-        cell!(
-            200,
-            "physical_settle",
-            Optimization,
-            L1,
-            Gap,
-            0.0,
-            "Reserved QI/thermo settle-certify cell — not wired as silicon"
-        ),
-        cell!(
-            201,
-            "reversible_rewrite",
-            Arithmetic,
-            L0,
-            Gap,
-            0.0,
-            "Reversible / adiabatic rewrite primitive — empty cell"
-        ),
-        cell!(
-            202,
-            "ising_bind",
-            Optimization,
-            L1,
-            Gap,
-            0.0,
-            "Energy-function / Ising bind — empty cell"
-        ),
-        cell!(
-            203,
-            "adiabatic_schedule",
-            Signal,
-            L1,
-            Gap,
-            0.0,
-            "Adiabatic anneal schedule driver — empty cell"
-        ),
-        cell!(
-            204,
-            "ferric_efa_cert",
-            Constraint,
-            L1,
-            Gap,
-            0.0,
-            "On-device Ferric EFA certificate — out of proof scope"
-        ),
-    ]
-};
+/// Live catalog + honest Gaps: Present cells with GearKind::Lookup|Formula|Solver|Navigate
+/// are executable soft-ref entries (not placeholders). GearKind::None = name-only.
+/// Thesis target remains 258/33 (compute.openie.dev); this ships a growing live subset.
+const SUBSET_CELLS: &[StackPrimitive] = &[
+    cell!(1, "add_f64", Arithmetic, L0, Present, Formula, 5e-12, "IEEE-754 add a+b (Formula)"),
+    cell!(2, "landauer_bit", Arithmetic, L0, Present, Formula, 1e-12, "Landauer E_min = k_B T ln2 (Formula)"),
+    cell!(3, "tokenize", ParseTransform, L1, Present, Lookup, 1e-9, "Lexical token count (Lookup)"),
+    cell!(4, "bool_and", Logic, L0, Present, Lookup, 1e-12, "Boolean AND (Lookup)"),
+    cell!(5, "dict_lookup", Lookup, L1, Present, Lookup, 1e-9, "Hash-map get / LUT sense (Lookup)"),
+    cell!(6, "cite_format", Retrieval, L1, Present, Lookup, 2e-10, "Format citation string (Lookup)"),
+    cell!(7, "schema_check", Constraint, L1, Present, Lookup, 1e-9, "Required-keys schema check (Lookup)"),
+    cell!(8, "hash_fnv1a", HashDigest, L0, Present, Lookup, 5e-11, "FNV-1a 64-bit (Lookup)"),
+    cell!(9, "json_encode", Encode, L1, Present, Lookup, 2e-9, "Encode key=value pairs as JSON object (Lookup)"),
+    cell!(10, "route_zone", Control, L1, Present, Lookup, 1e-10, "Zone router Z1/Z2/Z3 (Lookup)"),
+    cell!(11, "template_fill", Generative, L2, Present, None, 1e-7, "Ungrounded template fill (placeholder residual)"),
+    cell!(12, "hdc_bind", Hdc, L1, Present, Lookup, 5e-9, "HDC XOR-bind of two hex tokens (Lookup)"),
+    cell!(13, "sha256", Crypto, L1, Present, Lookup, 4e-9, "SHA-256 hex digest of payload= (Lookup)"),
+    cell!(14, "stdout_write", Io, L1, Present, Lookup, 1e-8, "Echo write payload (Lookup soft-ref)"),
+    cell!(15, "bfs", Graph, L1, Present, Solver, 5e-8, "Tiny BFS reachability (Solver)"),
+    cell!(16, "solve_2x2", LinearAlgebra, L1, Present, Solver, 1e-9, "Dense 2×2 solve (Solver)"),
+    cell!(17, "dist_euclid_2d", Geometry, L0, Present, Solver, 5e-12, "2D Euclidean distance (Solver)"),
+    cell!(18, "mean_f64", Statistics, L1, Present, Solver, 1e-10, "Arithmetic mean (Solver)"),
+    cell!(19, "moving_avg", Signal, L1, Present, Solver, 5e-10, "Moving average window (Solver)"),
+    cell!(20, "rle_encode", Compression, L1, Present, Lookup, 2e-9, "Run-length encode ASCII (Lookup)"),
+    cell!(21, "binary_search", SortSearch, L0, Present, Solver, 5e-11, "Binary search sorted list (Solver)"),
+    cell!(22, "bst_lookup", Tree, L1, Present, Lookup, 1e-9, "Sorted-list BST-style membership (Lookup)"),
+    cell!(23, "dfa_step", FiniteState, L0, Present, Lookup, 2e-12, "DFA transition step (Lookup)"),
+    cell!(24, "type_check_expr", TypeCheck, L1, Present, Lookup, 1e-9, "Simple expr type check (Lookup)"),
+    cell!(25, "edit_distance", DiffPatch, L1, Present, Solver, 2e-8, "Levenshtein distance (Solver)"),
+    cell!(26, "interval_intersect", Temporal, L0, Present, Solver, 5e-12, "Interval intersection (Solver)"),
+    cell!(27, "celsius_to_fahrenheit", UnitConvert, L0, Present, Lookup, 5e-12, "C → F (Lookup)"),
+    cell!(28, "str_reverse", StringMorph, L0, Present, Lookup, 5e-11, "Reverse string (Lookup)"),
+    cell!(29, "set_union", SetOps, L1, Present, Solver, 2e-9, "Set union (Solver)"),
+    cell!(30, "entropy_bits", Probabilistic, L1, Present, Formula, 3e-10, "Shannon entropy bits (Formula)"),
+    cell!(31, "argmin", Optimization, L1, Present, Solver, 2e-10, "Argmin over array (Solver)"),
+    cell!(32, "url_join", Network, L0, Present, Lookup, 5e-11, "Join URL parts (Lookup)"),
+    cell!(33, "fs_exists", FileSystem, L1, Present, Lookup, 1e-7, "Sandboxed path-exists check (Lookup)"),
+    cell!(34, "auto_emit_receipt", Automation, L1, Present, Lookup, 1e-9, "Emit automation receipt stub (Lookup)"),
+    cell!(35, "ternary_settle", Control, L1, Present, Solver, 1e-9, "Klere-style ternary settle (Solver)"),
+    cell!(36, "shannon_capacity", Probabilistic, L0, Present, Formula, 5e-12, "C = B log2(1+SNR) (Formula)"),
+    cell!(37, "mul_f64", Arithmetic, L0, Present, Formula, 5e-12, "IEEE-754 multiply a*b (Formula)"),
+    cell!(38, "div_f64", Arithmetic, L0, Present, Formula, 5e-12, "IEEE-754 divide a/b (Formula)"),
+    cell!(39, "pow_f64", Arithmetic, L0, Present, Formula, 1e-11, "a^b power (Formula)"),
+    cell!(40, "pythagoras", Geometry, L0, Present, Formula, 5e-12, "c = sqrt(a²+b²) (Formula)"),
+    cell!(41, "ohms_law", Arithmetic, L0, Present, Formula, 5e-12, "V = I·R (Formula)"),
+    cell!(42, "kinetic_energy", Arithmetic, L0, Present, Formula, 5e-12, "KE = ½ m v² (Formula)"),
+    cell!(43, "ideal_gas", Arithmetic, L0, Present, Formula, 5e-12, "PV = nRT (Formula)"),
+    cell!(44, "coulomb", Arithmetic, L0, Present, Formula, 5e-12, "F = k q1 q2 / r² (Formula)"),
+    cell!(45, "planck_e", Arithmetic, L0, Present, Formula, 5e-12, "E = h f (Formula)"),
+    cell!(46, "boltzmann_factor", Probabilistic, L0, Present, Formula, 5e-12, "exp(-E/kT) (Formula)"),
+    cell!(47, "snr_db", Signal, L0, Present, Formula, 5e-12, "SNR_dB = 10 log10(S/N) (Formula)"),
+    cell!(48, "compound_interest", Arithmetic, L0, Present, Formula, 5e-12, "A = P(1+r)^n (Formula)"),
+    cell!(49, "gaussian_pdf", Statistics, L0, Present, Formula, 1e-11, "Normal PDF φ(x;μ,σ) (Formula)"),
+    cell!(50, "nyquist_rate", Signal, L0, Present, Formula, 5e-12, "Nyquist rate = 2B (Formula)"),
+    cell!(51, "rest_energy", Arithmetic, L0, Present, Formula, 5e-12, "E = mc² (Formula)"),
+    cell!(52, "wave_lambda", Signal, L0, Present, Formula, 5e-12, "λ = c / f (Formula)"),
+    cell!(53, "logit", Probabilistic, L0, Present, Formula, 5e-12, "logit(p) = ln(p/(1-p)) (Formula)"),
+    cell!(54, "sigmoid", Probabilistic, L0, Present, Formula, 5e-12, "σ(x) = 1/(1+e^{-x}) (Formula)"),
+    cell!(55, "bit_bound", Probabilistic, L0, Present, Formula, 5e-12, "N log2 M alphabet bits (Formula)"),
+    cell!(56, "bool_or", Logic, L0, Present, Lookup, 1e-12, "Boolean OR (Lookup)"),
+    cell!(57, "bool_xor", Logic, L0, Present, Lookup, 1e-12, "Boolean XOR (Lookup)"),
+    cell!(58, "bool_not", Logic, L0, Present, Lookup, 1e-12, "Boolean NOT (Lookup)"),
+    cell!(59, "meters_to_feet", UnitConvert, L0, Present, Lookup, 5e-12, "m ↔ ft (Lookup)"),
+    cell!(60, "kg_to_lb", UnitConvert, L0, Present, Lookup, 5e-12, "kg ↔ lb (Lookup)"),
+    cell!(61, "joule_to_ev", UnitConvert, L0, Present, Lookup, 5e-12, "J ↔ eV (Lookup)"),
+    cell!(62, "kelvin_to_celsius", UnitConvert, L0, Present, Lookup, 5e-12, "K ↔ °C (Lookup)"),
+    cell!(63, "radians_to_degrees", UnitConvert, L0, Present, Lookup, 5e-12, "rad ↔ deg (Lookup)"),
+    cell!(64, "compare_pred", Arithmetic, L0, Present, Lookup, 5e-12, "Compare a ? b → bool (Lookup)"),
+    cell!(65, "clamp_f64", Arithmetic, L0, Present, Lookup, 5e-12, "Clamp x into [lo,hi] (Lookup)"),
+    cell!(66, "str_len", StringMorph, L0, Present, Lookup, 5e-11, "String length (Lookup)"),
+    cell!(67, "str_upper", StringMorph, L0, Present, Lookup, 5e-11, "ASCII uppercase (Lookup)"),
+    cell!(68, "set_member", SetOps, L0, Present, Lookup, 1e-9, "Set membership (Lookup)"),
+    cell!(69, "ticket_lut", Lookup, L1, Present, Lookup, 1e-9, "Support-desk resolution LUT (Lookup)"),
+    cell!(70, "risk_lut", Lookup, L1, Present, Lookup, 1e-9, "Risk-band LUT (Lookup)"),
+    cell!(71, "stack_navigate", Lookup, L0, Present, Navigate, 1e-12, "Periodic Stack family/primitive/scale navigate"),
+    cell!(72, "argmax", Optimization, L1, Present, Solver, 2e-10, "Argmax over array (Solver)"),
+    cell!(73, "variance_f64", Statistics, L1, Present, Solver, 1e-10, "Population variance (Solver)"),
+    cell!(74, "std_f64", Statistics, L1, Present, Solver, 1e-10, "Population stdev (Solver)"),
+    cell!(75, "set_intersect", SetOps, L1, Present, Solver, 2e-9, "Set intersection (Solver)"),
+    cell!(76, "set_difference", SetOps, L1, Present, Solver, 2e-9, "Set difference (Solver)"),
+    cell!(77, "gcd_u64", Arithmetic, L0, Present, Solver, 5e-12, "GCD of two integers (Solver)"),
+    cell!(78, "lcm_u64", Arithmetic, L0, Present, Solver, 5e-12, "LCM of two integers (Solver)"),
+    cell!(79, "dot_f64", LinearAlgebra, L0, Present, Solver, 5e-12, "Dot product of equal-length vectors (Solver)"),
+    cell!(80, "ticket_route", Control, L1, Present, Solver, 1e-9, "Ticket route rules / SAT assign (Solver)"),
+    cell!(81, "knapsack_01", Optimization, L1, Present, Solver, 5e-8, "Tiny 0-1 knapsack N≤8 (Solver)"),
+    cell!(82, "sort_f64", SortSearch, L1, Present, Solver, 1e-9, "Stable sort ascending (Solver)"),
+    cell!(83, "median_f64", Statistics, L1, Present, Solver, 1e-10, "Median of array (Solver)"),
+    cell!(84, "dist_euclid_3d", Geometry, L0, Present, Solver, 5e-12, "3D Euclidean distance (Solver)"),
+    cell!(85, "hamming_distance", DiffPatch, L0, Present, Solver, 5e-11, "Hamming distance equal-length strings (Solver)"),
+    cell!(86, "risk_formula", Probabilistic, L0, Present, Formula, 5e-12, "Closed-form risk S=(sev/5)·exp·lik (Formula)"),
+    cell!(87, "prefix_sum", SortSearch, L0, Present, Solver, 1e-10, "Inclusive prefix sum (Solver)"),
+    cell!(88, "matmul_2x2", LinearAlgebra, L1, Present, Solver, 1e-9, "2×2 matrix multiply (Solver)"),
+    cell!(89, "det_2x2", LinearAlgebra, L0, Present, Formula, 5e-12, "2×2 determinant (Formula)"),
+    cell!(90, "lerp", Arithmetic, L0, Present, Formula, 5e-12, "Linear interpolate (1-t)a + t b (Formula)"),
+    cell!(200, "physical_settle", Optimization, L1, Gap, None, 0.0, "Reserved QI/thermo settle-certify cell — not wired as silicon"),
+    cell!(201, "reversible_rewrite", Arithmetic, L0, Gap, None, 0.0, "Reversible / adiabatic rewrite primitive — empty cell"),
+    cell!(202, "ising_bind", Optimization, L1, Gap, None, 0.0, "Energy-function / Ising bind — empty cell"),
+    cell!(203, "adiabatic_schedule", Signal, L1, Gap, None, 0.0, "Adiabatic anneal schedule driver — empty cell"),
+    cell!(204, "ferric_efa_cert", Constraint, L1, Gap, None, 0.0, "On-device Ferric EFA certificate — out of proof scope"),
+    cell!(205, "quantum_gate_ops", LinearAlgebra, L0, Gap, None, 0.0, "Thesis TEN quantum gate ops — empty / HW emerging"),
+    cell!(206, "analog_crossbar_mac", LinearAlgebra, L1, Gap, None, 0.0, "Thesis ANALOG crossbar MAC — empty / emerging"),
+    cell!(207, "photonic_mzi", Signal, L0, Gap, None, 0.0, "Thesis ANALOG photonic MZI — empty / emerging"),
+];
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+
+    #[test]
+    fn live_catalog_honesty() {
+        let s = PeriodicStack::subset();
+        assert!(s.live_gear_count() >= 80, "live gears={}", s.live_gear_count());
+        assert!(s.live_gear_count_of(GearKind::Lookup) >= 25);
+        assert!(s.live_gear_count_of(GearKind::Formula) >= 20);
+        assert!(s.live_gear_count_of(GearKind::Solver) >= 20);
+        assert!(s.placeholder_present_count() <= 5, "few placeholders only");
+        assert!(s.gap_count() >= 5);
+        assert!(s.scale_note().contains("live catalog"));
+        assert!(s.scale_note().contains("258"));
+        for c in s.live_cells() {
+            assert_eq!(c.status, CellStatus::Present);
+            assert!(c.gear.is_live());
+        }
+        for c in s.iter().filter(|c| c.status == CellStatus::Gap) {
+            assert_eq!(c.gear, GearKind::None);
+        }
+    }
 
     #[test]
     fn thirty_three_families() {
@@ -717,9 +822,10 @@ mod tests {
         let s = PeriodicStack::subset();
         assert_eq!(FULL_TARGET_PRIMITIVES, 258);
         assert_eq!(FULL_TARGET_FAMILIES, 33);
-        assert!(s.present_count() >= 33, "at least one present theme per family band");
+        assert!(s.present_count() >= 80, "expanded live present={}", s.present_count());
+        assert!(s.live_gear_count() >= 80);
         assert!(s.gap_count() >= 4);
-        assert!(s.remaining_to_full() > 200);
+        assert!(s.remaining_to_full() > 150, "remain={}", s.remaining_to_full());
         assert!(s.scale_note().contains("258"));
     }
 

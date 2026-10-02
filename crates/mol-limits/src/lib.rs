@@ -14,7 +14,7 @@ pub use router::{CloseOutcome, MixtureOfLimits, MolOutcome};
 
 // Re-export stack navigator used by primitive_gap probes.
 pub use mol_core::{
-    CellStatus, PeriodicStack, ProbeResult, StackFamily, StackPrimitive,
+    CellStatus, GearKind, PeriodicStack, ProbeResult, StackFamily, StackPrimitive,
     FULL_TARGET_FAMILIES, FULL_TARGET_PRIMITIVES,
 };
 

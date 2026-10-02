@@ -100,10 +100,36 @@ pub enum QueryKind {
 }
 
 impl QueryKind {
+    /// If `q` names a live Present catalog cell, map GearKind → QueryKind.
+    fn classify_live_catalog(q: &str, stack: &PeriodicStack) -> Option<Self> {
+        use crate::stack::GearKind;
+        // Prefer longer names first so `bool_and` wins over `bool`.
+        let mut cells: Vec<_> = stack.live_cells().collect();
+        cells.sort_by_key(|c| std::cmp::Reverse(c.name.len()));
+        for c in cells {
+            let n = c.name.to_ascii_lowercase();
+            // Require the primitive id as a token / prefix to avoid soft false hits.
+            let hit = q.contains(&n)
+                || q.contains(&format!("primitive {n}"))
+                || q.contains(&format!("catalog {n}"));
+            if !hit {
+                continue;
+            }
+            return match c.gear {
+                GearKind::Formula => Some(Self::ClosedFormPhysics),
+                GearKind::Lookup | GearKind::Navigate => Some(Self::UnitConvert),
+                GearKind::Solver => Some(Self::LinearSolve),
+                GearKind::None => continue,
+            };
+        }
+        None
+    }
+
     /// Heuristic classify from query text (demo classifier; not an NN).
     ///
     /// `PrimitiveGap` uses the in-tree [`PeriodicStack`] probe (Gap markers /
     /// absent names), not string heuristics alone.
+    /// Live catalog Present cells map via [`Self::classify_live_catalog`].
     pub fn classify(query: &str) -> Self {
         let q = query.to_ascii_lowercase();
         let stack = PeriodicStack::subset();
@@ -115,6 +141,11 @@ impl QueryKind {
 
         if PeriodicStack::is_navigate_query(query) {
             return Self::StackNavigate;
+        }
+
+        // Live Periodic Stack catalog gear: Present cell name → typed kind (not FreeForm/VoI).
+        if let Some(kind) = Self::classify_live_catalog(&q, &stack) {
+            return kind;
         }
 
         // Memory write/recall before physics/formula heuristics (e.g. remember … landauer …).

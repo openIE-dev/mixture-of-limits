@@ -13,6 +13,7 @@ use mol_receipt::{
 
 use crate::grammar::{GrammarCoverage, TierAnswer};
 use crate::distill::DistillStore;
+use crate::catalog_gear::{CatalogFormula, CatalogSolver};
 use crate::lut_gear::{CompositeLookup, DistilledFormula};
 use crate::residual::ResidualModelAdapter;
 use crate::route_solver::TicketRouteSolver;
@@ -25,6 +26,7 @@ use crate::tiers::{
 #[derive(Debug, Default)]
 struct SolverGear {
     route: TicketRouteSolver,
+    catalog: CatalogSolver,
     linear: LinearSolver,
     settle: TernarySettle,
 }
@@ -35,13 +37,20 @@ impl GrammarCoverage for SolverGear {
     }
 
     fn covers(&self, req: &MolRequest) -> bool {
-        self.route.covers(req) || self.linear.covers(req) || self.settle.covers(req)
+        self.route.covers(req) || self.catalog.covers(req) || self.linear.covers(req) || self.settle.covers(req)
     }
 
     fn try_answer(&self, req: &MolRequest) -> Result<TierAnswer> {
         // Prefer ticket-route / knapsack, then linear, then settle.
         if self.route.covers(req) {
             match self.route.try_answer(req) {
+                Ok(a) => return Ok(a),
+                Err(MolError::NotCovered(_)) => {}
+                Err(e) => return Err(e),
+            }
+        }
+        if self.catalog.covers(req) {
+            match self.catalog.try_answer(req) {
                 Ok(a) => return Ok(a),
                 Err(MolError::NotCovered(_)) => {}
                 Err(e) => return Err(e),
@@ -65,6 +74,7 @@ impl GrammarCoverage for SolverGear {
 #[derive(Debug, Default)]
 struct CompositeFormula {
     distilled: DistilledFormula,
+    catalog: CatalogFormula,
     base: FormulaTier,
 }
 
@@ -74,12 +84,19 @@ impl GrammarCoverage for CompositeFormula {
     }
 
     fn covers(&self, req: &MolRequest) -> bool {
-        self.distilled.covers(req) || self.base.covers(req)
+        self.distilled.covers(req) || self.catalog.covers(req) || self.base.covers(req)
     }
 
     fn try_answer(&self, req: &MolRequest) -> Result<TierAnswer> {
         if self.distilled.covers(req) {
             match self.distilled.try_answer(req) {
+                Ok(a) => return Ok(a),
+                Err(MolError::NotCovered(_)) => {}
+                Err(e) => return Err(e),
+            }
+        }
+        if self.catalog.covers(req) {
+            match self.catalog.try_answer(req) {
                 Ok(a) => return Ok(a),
                 Err(MolError::NotCovered(_)) => {}
                 Err(e) => return Err(e),
@@ -152,6 +169,7 @@ impl CascadeEngine {
         let lookup = CompositeLookup::default().with_distill_store(store.clone());
         let formula = CompositeFormula {
             distilled: DistilledFormula::default().with_distill_store(store),
+            catalog: CatalogFormula,
             base: FormulaTier,
         };
         self.lookup = Box::new(lookup);

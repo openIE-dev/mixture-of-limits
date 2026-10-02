@@ -12,6 +12,7 @@
 #![deny(missing_docs)]
 
 mod bloom;
+mod catalog_gear;
 mod engine;
 mod grammar;
 mod lut_gear;
@@ -24,6 +25,7 @@ pub use engine::{CascadeEngine, CascadeResult};
 pub use bloom::{BloomFilter, ResolutionLut};
 pub use grammar::{GrammarCoverage, TierAnswer};
 pub use lut_gear::{CompositeLookup, DistilledFormula, TicketResolutionLookup};
+pub use catalog_gear::{CatalogFormula, CatalogLookup, CatalogSolver};
 pub use route_solver::TicketRouteSolver;
 pub use tiers::{
     ClaimCompose, ClaimRetrieve, FormulaTier, LinearSolver, LookupTable, ModelStub,

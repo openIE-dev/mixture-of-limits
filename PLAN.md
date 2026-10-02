@@ -128,7 +128,7 @@ Deepen clean-room implementations over stubs that fail proof. Ternary settle, EF
 | P7 | **Capability default-deny mutate** | `AutomateGate::default().gate(Mutate)` → Refuse |
 | P8 | **Receipt honesty** | `measured_j` always `None` in software-ref; `board_synth_claimed=false`; estimate labeled (`EstimateKind`) |
 | P9 | **ModelGenerated ↛ Deterministic** | `TypedAnswer::weaken_to` returns `ReplayCoercion` error (type/test) |
-| P10 | **Periodic Stack subset navigation** | Navigate family + present primitive + scale → COMMIT at Lookup; scale note cites 258/33 |
+| P10 | **Periodic Stack live catalog navigation** | Navigate family + present primitive + scale → COMMIT at Lookup; live gear counts in scale_note; cites 258/33 honesty |
 | P11 | **primitive_gap via registry probe** | Gap marker `physical_settle` + absent name → REFUSE `primitive_gap` (not string-only) |
 | P12 | **μ / impedance catalog** | Catalog μ per Lookup/Formula/Solver/Model; receipts stamp `mu_source=catalog` + `mu` + `landauer_floor_ratio`; `E≈θ·μ` (not fake RAPL) |
 | P13 | **Receipt replay** | JSONL/in-memory close transcript; replaying reproduces commit/refuse + limit id; model never answered |
@@ -160,7 +160,7 @@ Clearly marked; must **not** block `mol prove`:
 - klere-vm WASM / FPGA meter (real pJ/accumulate)
 - Live `openie-path` ask bridge / leapfrog runtime
 - Live WCA **in-proc** path-dep against `wca-lut-edge` (HTTP/MCP env certify **shipped**; FPGA Stage C meter still stub)
-- Full Periodic Stack 258 live catalog / μ **calib corpus** (in-tree **subset** navigator + Gap probes + **tier μ catalog** `mu_source=catalog` are **in proof**)
+- Remaining ~168 of Periodic Stack 258 thesis primitives / μ **calib corpus** (in-tree **live catalog** ≥80 Lookup/Formula/Solver gears + Gap probes + **tier μ catalog** `mu_source=catalog` are **in proof**)
 - Trained weights / candle / tract model leaf (Model stays demoted stub)
 
 Adapters remain documented ports for these; the proven path never requires them.

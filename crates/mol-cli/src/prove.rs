@@ -120,6 +120,7 @@ pub fn run_prove() -> bool {
 
     // P10 Periodic Stack subset navigation
     results.push(criterion_stack_navigation(&mol));
+    results.push(criterion_live_catalog_gears(&mol));
 
     // P11 primitive_gap via real registry probe
     results.push(criterion_primitive_gap_probe(&mol));
@@ -210,7 +211,7 @@ pub fn run_prove() -> bool {
         let failed = results.iter().filter(|c| !c.ok).count();
         println!("PROVE RESULT: FAILED ({failed}/{})", results.len());
     }
-    println!("OUT OF PROOF SCOPE: Ferric/MuJoCo robot EFA hardware, FPGA Stage C / wca-lut-edge in-proc + board meters (stage_c_measured=false), klere-vm package meters, System One pre-gate, full 258 live catalog, live nvidia-smi on hosts without NVIDIA (feature energy-meter still honest-unavailable). Live NI/WCA HTTP|MCP certify is in-tree (env-gated; in-crate fallback).");
+    println!("OUT OF PROOF SCOPE: Ferric/MuJoCo robot EFA hardware, FPGA Stage C / wca-lut-edge in-proc + board meters (stage_c_measured=false), klere-vm package meters, System One pre-gate, remaining ~168 of 258 thesis primitives (live catalog in proof), live nvidia-smi on hosts without NVIDIA (feature energy-meter still honest-unavailable). Live NI/WCA HTTP|MCP certify is in-tree (env-gated; in-crate fallback).");
     println!("IN PROOF (product gaps): live NI cert ids (in-crate + HTTP|MCP prefer_env fallback), Residual Model LAST, durable EpisodeStore C(z), mol bench Estimated|Metered, mol arena head-on, phase1 rule AST, distill v1, Tier-1 RAPL/NVML/macOS-SMC meter honesty + Tier-2 StubShuntHal");
     all_ok
 }
@@ -465,21 +466,95 @@ fn criterion_replay_coercion() -> Criterion {
     }
 }
 
+
+fn criterion_live_catalog_gears(mol: &MixtureOfLimits) -> Criterion {
+    let name = "live_catalog_gears";
+    let stack = PeriodicStack::subset();
+    if stack.live_gear_count() < 80 {
+        return Criterion::fail(name, format!("live_gear_count={}", stack.live_gear_count()));
+    }
+    // Sample live closes at the declared gear (not placeholders).
+    let samples = [
+        ("pythagoras a=3 b=4", CascadeTier::Formula, "pythagoras"),
+        ("bool_and a=true b=true", CascadeTier::Lookup, "bool_and"),
+        ("mean_f64 xs=[2,4,6,8]", CascadeTier::Solver, "mean"),
+        ("ohms_law i=2 r=5", CascadeTier::Formula, "ohms"),
+        ("edit_distance a=kitten b=sitting", CascadeTier::Solver, "edit"),
+        ("gcd_u64 a=48 b=18", CascadeTier::Solver, "gcd"),
+    ];
+    for (q, expect_tier, needle) in samples {
+        let out = match close(mol, q, Budget::coin_cell()) {
+            Ok(o) => o,
+            Err(e) => return Criterion::fail(name, format!("close error '{q}': {e}")),
+        };
+        if !out.is_commit() {
+            return Criterion::fail(
+                name,
+                format!(
+                    "expected COMMIT for live '{q}', limit={:?}",
+                    out.receipt().limit_fired.as_ref().map(|f| f.id.as_str())
+                ),
+            );
+        }
+        let tier = out.receipt().cascade_answered;
+        // mean_f64 is Solver; allow Solver when sample needle is mean
+        let ok_tier = match needle {
+            "mean" => tier == Some(CascadeTier::Solver),
+            _ => tier == Some(expect_tier),
+        };
+        if !ok_tier {
+            return Criterion::fail(
+                name,
+                format!("expected {expect_tier:?} for '{q}', got {tier:?}"),
+            );
+        }
+        let ans = out.receipt().answer.clone().unwrap_or_default().to_ascii_lowercase();
+        let want = if needle == "mean" { "mean_f64" } else { needle };
+        if !ans.contains(want) {
+            return Criterion::fail(name, format!("answer missing {want}: {ans}"));
+        }
+        if matches!(out.receipt().measured_j, Some(_)) {
+            return Criterion::fail(name, "must not invent measured_j on catalog closes");
+        }
+    }
+    Criterion::verified(
+        name,
+        format!(
+            "live catalog closes Lookup/Formula/Solver samples; {} live gears / {} present / {} toward 258; placeholders={}; estimates≠measured_j",
+            stack.live_gear_count(),
+            stack.present_count(),
+            stack.remaining_to_full(),
+            stack.placeholder_present_count()
+        ),
+    )
+}
+
 fn criterion_stack_navigation(mol: &MixtureOfLimits) -> Criterion {
     let name = "stack_navigation";
     let stack = PeriodicStack::subset();
-    if stack.present_count() < 30 || stack.gap_count() < 4 {
+    if stack.present_count() < 80 || stack.gap_count() < 5 {
         return Criterion::fail(
             name,
             format!(
-                "subset too small: present={} gaps={}",
+                "live catalog too small: present={} gaps={} live={}",
                 stack.present_count(),
-                stack.gap_count()
+                stack.gap_count(),
+                stack.live_gear_count()
             ),
         );
     }
-    if !stack.scale_note().contains("258") {
-        return Criterion::fail(name, "scale_note must document full 258 target");
+    if stack.live_gear_count() < 80 {
+        return Criterion::fail(
+            name,
+            format!(
+                "live Lookup/Formula/Solver gears too few: {} (placeholders={})",
+                stack.live_gear_count(),
+                stack.placeholder_present_count()
+            ),
+        );
+    }
+    if !stack.scale_note().contains("258") || !stack.scale_note().contains("live catalog") {
+        return Criterion::fail(name, "scale_note must document live catalog vs full 258 target");
     }
     // Navigate family + present primitive via close (Lookup).
     for q in [
@@ -515,8 +590,13 @@ fn criterion_stack_navigation(mol: &MixtureOfLimits) -> Criterion {
     Criterion::verified(
         name,
         format!(
-            "subset {} present + {} gaps / 33 families; navigate family+primitive+scale at Lookup (full target 258)",
+            "live catalog {} present ({} live gears: L{}/F{}/S{}; {} placeholder) + {} gaps / 33 families; navigate at Lookup (full target 258)",
             stack.present_count(),
+            stack.live_gear_count(),
+            stack.live_gear_count_of(mol_core::GearKind::Lookup),
+            stack.live_gear_count_of(mol_core::GearKind::Formula),
+            stack.live_gear_count_of(mol_core::GearKind::Solver),
+            stack.placeholder_present_count(),
             stack.gap_count()
         ),
     )
