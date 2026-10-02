@@ -85,13 +85,36 @@ pub fn cmd_distill(
         eprintln!("distill append: {e}");
         return ExitCode::FAILURE;
     }
+    // Second-pass prove: reload store into MoL — Lookup/Formula without model.
+    let mol2 = MixtureOfLimits::new()
+        .with_fabric(FabricInventory::software_ref_with_gpu(DeviceKind::GpuMetal))
+        .with_distill_store(store.clone());
+    let mut b2 = Budget::demo(); // model cold
+    b2.max_j = Joules::new(1.0);
+    let second = mol2.close(&MolRequest::new(&entry.pattern, b2));
+    let second_ok = match &second {
+        Ok(o) if o.is_commit() => matches!(
+            o.receipt().cascade_answered,
+            Some(mol_core::CascadeTier::Lookup) | Some(mol_core::CascadeTier::Formula)
+        ),
+        _ => false,
+    };
+
     if json {
         println!("{}", serde_json::to_string_pretty(&entry).unwrap());
     } else {
-        println!("=== mol distill — Primitive Distillation Loop v1 ===");
+        println!("=== mol distill — Primitive Distillation Loop v1 (hardened) ===");
         println!("appended {} gear={} pattern={}", entry.id, entry.gear, entry.pattern);
         println!("source_receipt={} certs={:?}", entry.source_receipt_id, entry.certificate_ids);
         println!("replay_class=Deterministic (after NI cert); store={}", store_path.display());
+        if second_ok {
+            println!(
+                "second_pass=OK tier={:?} (Lookup/Formula without model)",
+                second.as_ref().unwrap().receipt().cascade_answered
+            );
+        } else {
+            println!("second_pass=WARN could not close distilled pattern without model");
+        }
     }
     ExitCode::SUCCESS
 }

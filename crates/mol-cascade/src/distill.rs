@@ -94,6 +94,36 @@ impl DistillStore {
     pub fn find_pattern(&self, pattern: &str) -> Option<&DistillEntry> {
         self.entries.values().find(|e| e.pattern == pattern)
     }
+
+    /// Match a live query against distilled patterns (substring, case-insensitive).
+    ///
+    /// Prefers longest pattern match. Used by Lookup/Formula gears so a **second
+    /// pass** after certified Model LAST distill closes without opening the model.
+    pub fn match_query(&self, query: &str) -> Option<&DistillEntry> {
+        let q = query.to_ascii_lowercase();
+        let mut best: Option<&DistillEntry> = None;
+        for e in self.entries.values() {
+            let p = e.pattern.to_ascii_lowercase();
+            if p.is_empty() {
+                continue;
+            }
+            if q.contains(&p) || p.contains(&q) || q == p {
+                best = Some(match best {
+                    Some(b) if b.pattern.len() >= e.pattern.len() => b,
+                    _ => e,
+                });
+            }
+        }
+        best
+    }
+
+    /// Entries targeting a gear (`lookup` or `formula`).
+    pub fn for_gear<'a>(&'a self, gear: &str) -> impl Iterator<Item = &'a DistillEntry> + 'a {
+        let g = gear.to_ascii_lowercase();
+        self.entries
+            .values()
+            .filter(move |e| e.gear.eq_ignore_ascii_case(&g))
+    }
 }
 
 /// Distill a **certified** Model LAST commit into a Lookup/Formula entry.
@@ -189,5 +219,15 @@ mod tests {
         let mut store = DistillStore::new();
         store.append(e.clone()).unwrap();
         assert!(store.find_pattern("ticket close resolution=R-NEW").is_some());
+        assert!(store
+            .match_query("please ticket close resolution=R-NEW now")
+            .is_some());
+        assert_eq!(
+            store
+                .match_query("please ticket close resolution=R-NEW now")
+                .unwrap()
+                .body,
+            "LOOKUP ticket_resolution R-NEW → closed"
+        );
     }
 }

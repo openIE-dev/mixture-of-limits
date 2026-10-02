@@ -74,6 +74,9 @@ mol bench [--json] [--arena] [--endpoint URL] [--profile …] [--model ID]
 mol arena [--json] [--endpoint URL] [--profile stub|laya|jev|decider] [--model ID]
 mol phase1 "please close ticket as R-OK"
 mol distill "residual text" --gear lookup --store product/fixtures/distill_store.json
+# After distill, reload store into MixtureOfLimits::with_distill_store —
+# second close on the distilled pattern hits Lookup; Model LAST stays cold.
+
 ```
 
 ## Roadmap polish

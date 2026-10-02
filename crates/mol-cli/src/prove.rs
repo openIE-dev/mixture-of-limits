@@ -5,7 +5,7 @@
 
 use mol_adapters::InCrateNiCertify;
 use mol_automate::{Act, ActKind, AgentLoop, AutomateGate, Capability, CapabilitySet, CommitDecision, EcosystemCertify, EcosystemCertifyConfig};
-use mol_cascade::{distill_certified_model_last, ResidualModelAdapter};
+use mol_cascade::{distill_certified_model_last, DistillStore, ResidualModelAdapter};
 use mol_core::{
     CompletenessSnapshot, EpisodeStore, Phase1Config, StubShuntHal, ShuntHal, energy_pair_honest, host_invoke,
     measure_energy_window, parse_powermetrics_output, probe_meter_capability, probe_nvml_capability,
@@ -3255,14 +3255,18 @@ fn criterion_product_a12_distill() -> Criterion {
         return Criterion::fail(name, "need certified Model LAST commit to distill");
     }
     let r = out.receipt();
+    if r.replay_class != Some(ReplayClass::ModelGenerated) {
+        return Criterion::fail(name, "first pass must be ModelGenerated");
+    }
+    let pattern = "DISTILL-SECOND-PASS-KEY-R-XYZ";
     let entry = match distill_certified_model_last(
         &r.id,
         r.answer.as_deref().unwrap_or(""),
         &r.certificate_ids,
         "ni_in_crate",
         "lookup",
-        "ticket close resolution=R-DISTILL",
-        "LOOKUP R-DISTILL → closed",
+        pattern,
+        "LOOKUP distilled R-XYZ → closed without model",
     ) {
         Ok(e) => e,
         Err(e) => return Criterion::fail(name, format!("distill: {e}")),
@@ -3270,9 +3274,49 @@ fn criterion_product_a12_distill() -> Criterion {
     if entry.replay_class != ReplayClass::Deterministic {
         return Criterion::fail(name, "distilled entry must be Deterministic");
     }
+    let mut store = DistillStore::new();
+    if let Err(e) = store.append(entry) {
+        return Criterion::fail(name, format!("store append: {e}"));
+    }
+    // Second pass: same MoL with distill store — Lookup hit, model never invoked.
+    let mol2 = MixtureOfLimits::new()
+        .with_fabric(FabricInventory::software_ref_with_gpu(DeviceKind::GpuMetal))
+        .with_distill_store(store);
+    let mut b2 = Budget::demo(); // model NOT allowed — must still close at Lookup
+    b2.max_j = Joules::new(1.0);
+    let out2 = match mol2.close(&MolRequest::new(
+        &format!("please resolve {pattern} for customer"),
+        b2,
+    )) {
+        Ok(o) => o,
+        Err(e) => return Criterion::fail(name, format!("second pass: {e}")),
+    };
+    if !out2.is_commit() {
+        return Criterion::fail(
+            name,
+            format!(
+                "second pass must COMMIT at Lookup without model; limit={:?}",
+                out2.receipt().limit_fired.as_ref().map(|f| f.id.as_str())
+            ),
+        );
+    }
+    let r2 = out2.receipt();
+    if r2.cascade_answered != Some(CascadeTier::Lookup) {
+        return Criterion::fail(
+            name,
+            format!("second pass expected Lookup, got {:?}", r2.cascade_answered),
+        );
+    }
+    if r2.replay_class == Some(ReplayClass::ModelGenerated) {
+        return Criterion::fail(name, "second pass must not be ModelGenerated");
+    }
+    let ans = r2.answer.clone().unwrap_or_default();
+    if !ans.contains("distilled_lookup") && !ans.contains("without model") {
+        return Criterion::fail(name, format!("second pass answer missing distill mark: {ans}"));
+    }
     Criterion::verified(
         name,
-        "A12: Primitive Distillation v1 — certified Model LAST → Lookup append; uncertified refuse",
+        "A12: Primitive Distillation — certified Model LAST → Lookup; second pass Lookup without model; uncertified refuse",
     )
 }
 

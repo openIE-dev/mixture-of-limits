@@ -115,13 +115,13 @@ Physics-informed acceptance. Soft-ref proves constructive existence; these tests
 | When | Unstructured ticket-ish input |
 | Then | Rule AST transducer emits typed query; unrecognized refuses parser-as-model |
 
-## A12 — Primitive Distillation Loop v1
+## A12 — Primitive Distillation Loop v1 (hardened)
 
 | Field | Value |
 |---|---|
 | Given | Certified Model LAST commit |
-| When | `mol distill` / `distill_certified_model_last` |
-| Then | Lookup/Formula append with Deterministic replay; uncertified refuses |
+| When | `mol distill` / `distill_certified_model_last` then cascade with `with_distill_store` |
+| Then | Lookup/Formula append with Deterministic replay; **second pass** matching the distilled pattern closes at **Lookup** (or Formula) **without** opening Model LAST; uncertified refuses |
 
 ## A13 — Tier-1 NVML + Tier-2 shunt HAL
 
@@ -155,7 +155,7 @@ Physics-informed acceptance. Soft-ref proves constructive existence; these tests
 | A9 | Durable EpisodeStore C(z) |
 | A10 | `mol bench` Estimated\|Metered only |
 | A11 | Phase-1 rule AST workable |
-| A12 | Distill v1 certified→Lookup |
+| A12 | Distill v1 certified→Lookup; second pass Lookup without model |
 | A13 | Tier-1 NVML + Tier-2 shunt honesty |
 | A14 | `mol arena` head-on Estimated only; no invent |
 

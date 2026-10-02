@@ -12,7 +12,8 @@ use mol_receipt::{
 };
 
 use crate::grammar::{GrammarCoverage, TierAnswer};
-use crate::lut_gear::CompositeLookup;
+use crate::distill::DistillStore;
+use crate::lut_gear::{CompositeLookup, DistilledFormula};
 use crate::residual::ResidualModelAdapter;
 use crate::route_solver::TicketRouteSolver;
 use crate::tiers::{
@@ -60,6 +61,34 @@ impl GrammarCoverage for SolverGear {
     }
 }
 
+/// Formula gear: distilled Formula entries first, then closed-form FormulaTier.
+#[derive(Debug, Default)]
+struct CompositeFormula {
+    distilled: DistilledFormula,
+    base: FormulaTier,
+}
+
+impl GrammarCoverage for CompositeFormula {
+    fn tier(&self) -> CascadeTier {
+        CascadeTier::Formula
+    }
+
+    fn covers(&self, req: &MolRequest) -> bool {
+        self.distilled.covers(req) || self.base.covers(req)
+    }
+
+    fn try_answer(&self, req: &MolRequest) -> Result<TierAnswer> {
+        if self.distilled.covers(req) {
+            match self.distilled.try_answer(req) {
+                Ok(a) => return Ok(a),
+                Err(MolError::NotCovered(_)) => {}
+                Err(e) => return Err(e),
+            }
+        }
+        self.base.try_answer(req)
+    }
+}
+
 /// Result of running the cascade.
 #[derive(Debug, Clone)]
 pub struct CascadeResult {
@@ -96,7 +125,7 @@ impl CascadeEngine {
     pub fn new() -> Self {
         Self {
             lookup: Box::new(CompositeLookup::default()),
-            formula: Box::new(FormulaTier),
+            formula: Box::new(CompositeFormula::default()),
             retrieve: Box::new(ClaimRetrieve::default()),
             compose: Box::new(ClaimCompose::default()),
             solver: Box::new(SolverGear::default()),
@@ -114,6 +143,19 @@ impl CascadeEngine {
     /// Replace Model LAST leaf (default: ResidualModelAdapter).
     pub fn with_model(mut self, model: Box<dyn ModelStub>) -> Self {
         self.model = model;
+        self
+    }
+
+    /// Attach Primitive Distillation store so Lookup/Formula second pass hits
+    /// distilled patterns without opening Model LAST.
+    pub fn with_distill_store(mut self, store: DistillStore) -> Self {
+        let lookup = CompositeLookup::default().with_distill_store(store.clone());
+        let formula = CompositeFormula {
+            distilled: DistilledFormula::default().with_distill_store(store),
+            base: FormulaTier,
+        };
+        self.lookup = Box::new(lookup);
+        self.formula = Box::new(formula);
         self
     }
 

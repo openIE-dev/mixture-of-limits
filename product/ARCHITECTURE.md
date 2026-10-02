@@ -74,7 +74,7 @@ Meta-routing stays **strictly cheaper than the smallest allowed inference leaf**
 
 Soft-ref default: `board_synth_claimed=false`, `measured_j=None`.
 
-## Primitive Distillation Loop — **v1 shipped** (`mol distill`)
+## Primitive Distillation Loop — **v1 hardened** (`mol distill` + cascade `with_distill_store`)
 
 When grammar is undefined and a residual is worth keeping:
 
@@ -85,13 +85,16 @@ When grammar is undefined and a residual is worth keeping:
   certify (typed check / proof / settle)
          │ pass
          ▼
-  AST compile → new Lookup row or Formula identity
+  AST compile → DistillStore Lookup/Formula entry (Deterministic)
          │
          ▼
-  Periodic Stack Present cell (replay class Deterministic)
+  Second pass: same pattern → Lookup/Formula gear hit
+         │
+         ▼
+  Model LAST never opened (allow_model optional/off)
 ```
 
-Uncertified proposals never become Lookup. Distilled entries carry provenance (source receipt, certify method, replay class). Soft-ref still refuses with `primitive_gap` / grammar-miss when not distilling.
+Uncertified proposals never become Lookup. Distilled entries carry provenance (source receipt, certify method, replay class). Soft-ref still refuses with `primitive_gap` / grammar-miss when not distilling. `mol prove` A12 asserts first-pass ModelGenerated → distill → second-pass Lookup without model. Estimates ≠ `measured_j`.
 
 ## Clean-room mapping
 

@@ -41,7 +41,7 @@ Cited already in OpenIE research triad (NI + Satiation papers): System One = typ
 2. Soft-ref close path wired to existing Rust clean-room: `mol prove` (exists) + `mol run --chore <yaml>` (stub → load yaml → close).
 3. Acceptance tests in ACCEPTANCE.md: O(1) grammar hit → no model; VoI=0 → refuse; `C=1` → satiation stop; `ModelGenerated` never commits without NI cert; estimate joules on every receipt; `measured_j` only when meter present.
 4. One concrete chore: support-desk ticket close (primary). Optional sketch: `financial_risk_scoring` (secondary YAML).
-5. Architecture doc for dual-phase micro-perception → Mixture of Limits stack → NI commit → satiation; Primitive Distillation Loop as **v2**.
+5. Architecture doc for dual-phase micro-perception → Mixture of Limits stack → NI commit → satiation; Primitive Distillation Loop **v1 hardened** (second pass Lookup/Formula without model).
 
 ## Non-goals (MVP)
 

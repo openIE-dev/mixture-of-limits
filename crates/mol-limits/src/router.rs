@@ -4,7 +4,7 @@ use mol_adapters::{
     EfaCertificatePort, EfaDecision, EfaProposal, InCrateNiCertify,
     WcaCommitPort,
 };
-use mol_cascade::{CascadeEngine, CascadeResult, ModelStub};
+use mol_cascade::{CascadeEngine, CascadeResult, DistillStore, ModelStub};
 use std::sync::Mutex;
 
 use mol_core::{
@@ -134,6 +134,12 @@ impl MixtureOfLimits {
     /// Replace Model LAST residual leaf (stub or OpenAI-compatible adapter).
     pub fn with_model(mut self, model: Box<dyn ModelStub>) -> Self {
         self.cascade = self.cascade.with_model(model);
+        self
+    }
+
+    /// Attach distill store so second-pass Lookup/Formula closes without model.
+    pub fn with_distill_store(mut self, store: DistillStore) -> Self {
+        self.cascade = self.cascade.with_distill_store(store);
         self
     }
 
