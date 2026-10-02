@@ -14,6 +14,7 @@ mod jouledb;
 mod klere;
 mod openie;
 mod wca;
+mod ni_live;
 
 pub use efa::{
     live_efa_stub, EfaCertResult, EfaCertificatePort, EfaDecision, EfaProposal, StubEfaCertificate,
@@ -25,6 +26,7 @@ pub use klere::{
 };
 pub use openie::{live_ask_stub, OpenIeAskResult, OpenIeRuntimePort, StubOpenIeRuntime};
 pub use wca::{live_wca_stub, software_reference_cert, StubWcaCommit, WcaCertResult, WcaCommitPort};
+pub use ni_live::{InCrateNiCertify, LiveCertOutcome, NiCertificate};
 
 /// Crate version.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

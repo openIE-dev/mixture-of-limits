@@ -1,38 +1,23 @@
 # Publish path — openIE-dev/mixture-of-limits
 
-Clean-room Rust reference + `product/` mirror. Named in Cargo.toml; create when ready.
+Canonical clean-room + `product/` mirror is **published**:
+https://github.com/openIE-dev/mixture-of-limits
 
-## Create (David / openIE-dev auth)
+## Docs mirror
 
-```bash
-cd /Users/dcharlot/Desktop/mol-sync/mixture-of-limits
-# if not yet a git repo:
-git init
-git add -A
-git commit -m "Mixture of Limits clean-room + product A1–A6 surface"
+Keep product embodiment docs in-repo under `product/`. Optional separate
+`openIE-dev/mixture-of-limits-product` is **deferred** — prefer one canonical code repo.
 
-gh repo create openIE-dev/mixture-of-limits \
-  --source=. --public \
-  --description "Mixture of Limits — navigation floors, NI certify-before-commit, satiation stop (Apache-2.0 OR MIT)" \
-  --push
-```
+Drafting mirror may also live at:
+`/Users/dcharlot/data-share/vibe-coding/mixture-of-limits-product/`
 
-Active `gh` account for org: `dcharlot65-openie` (scopes include `repo`).
-
-## Product embodiment package (docs)
-
-```bash
-cd /Users/dcharlot/data-share/vibe-coding/mixture-of-limits-product
-# already git; optional remote:
-# gh repo create openIE-dev/mixture-of-limits-product --source=. --public --push
-```
-
-Prefer **one** canonical code repo (`mixture-of-limits`) with `product/` inside; keep vibe-coding package as drafting mirror if needed.
-
-## Verify
+## Verify before push
 
 ```bash
 cargo test --workspace
-cargo run -p mol-cli -- prove
+cargo run -p mol-cli -- prove   # 42 VERIFIED incl. A1–A13
 cargo run -p mol-cli -- run --chore product/mol.yaml
+cargo run -p mol-cli -- bench
 ```
+
+Active `gh` account for org: `dcharlot65-openie`.

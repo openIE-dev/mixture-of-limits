@@ -25,6 +25,7 @@ wasmtime = ["dep:wasmtime"]
 
 [dependencies]
 serde = { workspace = true }
+serde_json = { workspace = true }
 thiserror = { workspace = true }
 chrono = { workspace = true }
 wgpu = { version = "24", optional = true, default-features = true }

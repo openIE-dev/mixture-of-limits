@@ -9,8 +9,8 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use mol_core::{
-    Budget, CompletenessClause, CompletenessSnapshot, MolRequest, QueryKind, ReplayClass,
-    BOARD_SYNTH_CLAIMED,
+    run_phase1, Budget, CompletenessClause, CompletenessSnapshot, EpisodeStore, MolRequest,
+    Phase1Config, Phase1Outcome, QueryKind, ReplayClass, BOARD_SYNTH_CLAIMED,
 };
 use mol_limits::{CloseOutcome, MixtureOfLimits};
 use serde::Deserialize;
@@ -29,6 +29,8 @@ struct ChoreFile {
     limits: Vec<LimitCfg>,
     #[serde(default)]
     pipeline: Vec<PipelineStep>,
+    #[serde(default)]
+    phase1: Phase1Cfg,
 }
 
 #[derive(Debug, Deserialize)]
@@ -57,6 +59,14 @@ struct CompletenessCfg {
 struct CascadeCfg {
     #[serde(default)]
     allow_model: bool,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct Phase1Cfg {
+    #[serde(default)]
+    enabled: bool,
+    #[serde(default)]
+    transducer: Option<String>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -255,9 +265,86 @@ pub fn cmd_run_scenario(
     println!("  board_synth_claimed=false");
     println!("  estimates ≠ measured_j");
 
-    let (req, note) = scenario_request(&cfg, allow, scenario.to_ascii_lowercase().as_str());
+    let (mut req, note) = scenario_request(&cfg, allow, scenario.to_ascii_lowercase().as_str());
     println!("  note={note}");
+
+    // Phase-1 micro-perception when enabled in chore YAML.
+    let p1 = Phase1Config {
+        enabled: cfg.phase1.enabled,
+        transducer: cfg
+            .phase1
+            .transducer
+            .clone()
+            .unwrap_or_else(|| "rule_ast".into()),
+    };
+    println!("  phase1.enabled={}", p1.enabled);
+    if p1.enabled {
+        match run_phase1(&p1, &req.query) {
+            Phase1Outcome::Typed(ast) => {
+                println!(
+                    "  phase1=typed kind={} rule={} → {:?}",
+                    ast.kind, ast.rule, ast.typed_query
+                );
+                req = MolRequest::new(ast.typed_query, req.budget);
+                if let Some(k) = ast.query_kind {
+                    req = req.with_kind(k);
+                }
+            }
+            Phase1Outcome::Passthrough { .. } => {}
+            Phase1Outcome::Unrecognized { reason, .. } => {
+                eprintln!("mol run: phase1 unrecognized: {reason}");
+                return ExitCode::FAILURE;
+            }
+        }
+    }
     println!("  query={:?}", req.query);
+
+    // Durable episode state for C(z) across closes.
+    let ep_path = std::env::temp_dir().join(format!(
+        "mol-episode-{}-{}.json",
+        cfg.chore.id.replace('/', "_"),
+        std::process::id()
+    ));
+    let mut episodes = EpisodeStore::load(&ep_path).unwrap_or_else(|_| EpisodeStore {
+        path: Some(ep_path.clone()),
+        ..EpisodeStore::new()
+    });
+    // YAML completeness is the predicate *schema*; live C(z) attaches only for
+    // satiation scenarios (a3) or when a durable episode already satiated.
+    // Default open episode starts incomplete so Lookup/Formula can still commit.
+    let schema_snap = cfg
+        .chore
+        .completeness
+        .as_ref()
+        .map(snapshot_from_cfg)
+        .unwrap_or_else(|| CompletenessSnapshot::ticket_close(false, false, false));
+    let open_snap = if scenario.to_ascii_lowercase() == "a3" {
+        // Force all clauses true for A3 satiation episode.
+        CompletenessSnapshot::new(
+            schema_snap.id.clone(),
+            schema_snap
+                .clauses
+                .iter()
+                .map(|c| CompletenessClause::new(c.id.clone(), true))
+                .collect(),
+        )
+    } else {
+        CompletenessSnapshot::new(
+            schema_snap.id.clone(),
+            schema_snap
+                .clauses
+                .iter()
+                .map(|c| CompletenessClause::new(c.id.clone(), false))
+                .collect(),
+        )
+    };
+    {
+        let ep = episodes.get_or_open(&cfg.chore.id, open_snap);
+        if scenario.to_ascii_lowercase() == "a3" || ep.must_refuse_synthesis() {
+            req = req.with_completeness(ep.completeness.clone());
+        }
+    }
+    let _ = episodes.save();
 
     let mol = MixtureOfLimits::new();
     match mol.close(&req) {
@@ -283,6 +370,11 @@ pub fn cmd_run_scenario(
                 eprintln!("mol run: invariant fail — ModelGenerated laundered to Deterministic");
                 return ExitCode::FAILURE;
             }
+            let _ = episodes.record_close(
+                &cfg.chore.id,
+                req.completeness.clone(),
+                receipt.id.clone(),
+            );
             println!("  outcome=COMMIT");
             println!(
                 "  tier={:?} replay={:?} estimated_j={} measured_j=None board_synth_claimed=false",
@@ -310,6 +402,11 @@ pub fn cmd_run_scenario(
                 eprintln!("mol run: invariant fail — invent measured_j on refuse");
                 return ExitCode::FAILURE;
             }
+            let _ = episodes.record_close(
+                &cfg.chore.id,
+                req.completeness.clone(),
+                receipt.id.clone(),
+            );
             println!(
                 "  outcome=REFUSE limit={} kind={}",
                 floor.id,

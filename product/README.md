@@ -9,8 +9,8 @@ Not more diagnosis papers. Complements Laya System One (typed known option sets)
 | [PRODUCT.md](./PRODUCT.md) | One-pager: problem, names, vs Laya, MVP, non-goals |
 | [mol.yaml](./mol.yaml) | Declarative support-desk ticket-close chore |
 | [chores/financial_risk_scoring.yaml](./chores/financial_risk_scoring.yaml) | Secondary sketch |
-| [ACCEPTANCE.md](./ACCEPTANCE.md) | A1–A6 product tests |
-| [ARCHITECTURE.md](./ARCHITECTURE.md) | Dual-phase → MoL → NI → satiation; distillation = v2 |
+| [ACCEPTANCE.md](./ACCEPTANCE.md) | A1–A13 product tests |
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | Dual-phase → MoL → NI → satiation; distillation v1 |
 | [COMPETITIVE.md](./COMPETITIVE.md) | vs Laya / Jev·Kev / LLM agents — win on J/query, refuse, certify |
 | [fixtures/](./fixtures/) | Golden A1–A6 chore YAMLs |
 | [cli/MOL_CLI.md](./cli/MOL_CLI.md) | `mol prove` / `mol run` Rust outline |

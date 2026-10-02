@@ -16,6 +16,8 @@ mod engine;
 mod grammar;
 mod lut_gear;
 mod tiers;
+mod distill;
+mod residual;
 
 pub use engine::{CascadeEngine, CascadeResult};
 pub use bloom::{BloomFilter, ResolutionLut};
@@ -25,6 +27,8 @@ pub use tiers::{
     ClaimCompose, ClaimRetrieve, FormulaTier, LinearSolver, LookupTable, ModelStub,
     StubModelEndpoint, TernarySettle, UnitLookup,
 };
+pub use distill::{distill_certified_model_last, DistillEntry, DistillStore};
+pub use residual::{residual_budget_ok, ResidualModelAdapter};
 
 /// Crate version.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

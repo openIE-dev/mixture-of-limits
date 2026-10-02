@@ -18,6 +18,9 @@
 mod budget;
 mod claims;
 mod completeness;
+mod episode;
+mod phase1;
+mod shunt;
 mod capsule_runtime;
 mod compute;
 mod encapsulation;
@@ -63,6 +66,9 @@ pub use honesty::{
     EnergyHonestyClass,
 };
 pub use completeness::{CompletenessClause, CompletenessSnapshot};
+pub use episode::{EpisodeState, EpisodeStatus, EpisodeStore};
+pub use phase1::{run_phase1, transduce, Phase1Config, Phase1Outcome, TypedAst};
+pub use shunt::{FixtureShuntHal, ShuntCapability, ShuntHal, ShuntReading, StubShuntHal};
 pub use claims::{
     looks_compose_ask, looks_factual_ask, parse_compose_requirements, seed_compose_recipes,
     seed_demo_claims, AxisLite, ClaimHit, ClaimId, ClaimStore, ClaimVersion, ComposeRecipe,
@@ -92,9 +98,9 @@ pub use landauer::{
 };
 pub use meter::{
     measure_energy_during, measure_energy_window, meter_status_line, parse_powermetrics_output,
-    probe_meter_capability, sample_from_rapl_counters, sample_from_smc_pstr_watts, ComponentJoules,
-    MeterCapability, MeterComponent, MeterSample, RaplCounter, ENERGY_METER_ENABLED,
-    MACOS_METER_HELP, METER_HONESTY_NOTE,
+    probe_meter_capability, probe_nvml_capability, sample_from_rapl_counters, sample_from_smc_pstr_watts,
+    sample_nvml, ComponentJoules, MeterCapability, MeterComponent, MeterSample, RaplCounter,
+    ENERGY_METER_ENABLED, MACOS_METER_HELP, METER_HONESTY_NOTE,
 };
 pub use mu::{
     impedance_mismatch_energy, ImpedanceEstimate, MuCatalog, MuSource, DEFAULT_THETA_BITS,

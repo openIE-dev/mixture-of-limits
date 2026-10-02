@@ -1,7 +1,7 @@
 //! MixtureOfLimits router — owns close end-to-end when paired with certify.
 
 use mol_adapters::{
-    EfaCertificatePort, EfaDecision, EfaProposal, StubEfaCertificate, StubWcaCommit,
+    EfaCertificatePort, EfaDecision, EfaProposal, InCrateNiCertify,
     WcaCommitPort,
 };
 use mol_cascade::{CascadeEngine, CascadeResult};
@@ -397,11 +397,146 @@ impl MixtureOfLimits {
         }
     }
 
-    /// Own close end-to-end: route → EFA+WCA certify → commit|refuse → receipt.
+    /// Own close end-to-end: route → live in-crate NI/EFA/WCA certify → commit|refuse → receipt.
     ///
-    /// Software-reference stubs only; never fakes RAPL; `board_synth_claimed=false`.
+    /// Uses [`InCrateNiCertify`] (real certificate ids + commit|refuse receipt).
+    /// Never fakes RAPL; `board_synth_claimed=false`; FPGA Stage C stays unmetered.
     pub fn close(&self, req: &MolRequest) -> Result<CloseOutcome> {
-        self.close_with(req, &StubEfaCertificate, &StubWcaCommit)
+        self.close_live(req)
+    }
+
+    /// Live in-crate NI certify path (certificate ids stamped on receipt).
+    pub fn close_live(&self, req: &MolRequest) -> Result<CloseOutcome> {
+        let outcome = self.route(req)?;
+        if !outcome.is_answered() {
+            let floor = outcome
+                .receipt()
+                .limit_fired
+                .clone()
+                .unwrap_or_else(|| Floor::new("route_refuse", FloorKind::WcaRefuse, "route refused"));
+            return Ok(CloseOutcome::Refuse {
+                floor,
+                receipt: outcome.receipt().clone(),
+            });
+        }
+
+        let mut base = outcome.receipt().clone();
+        Self::stamp_ecosystem_receipt(&mut base, req);
+        let summary = base
+            .answer
+            .clone()
+            .unwrap_or_else(|| req.query.clone());
+        let estimated_j = base.estimated_j.0;
+        let efa_tag = extract_efa_tag(&req.query);
+
+        let ni = InCrateNiCertify::new();
+        let live = ni.certify_live(&summary, estimated_j, efa_tag, None)?;
+        let cert_ids = vec![
+            live.ni.certificate_id.clone(),
+            live.ni.efa_id.clone(),
+            live.ni.wca_id.clone(),
+        ];
+
+        if !live.ni.allows_commit() {
+            let floor = live.floor.unwrap_or_else(|| {
+                Floor::new(
+                    "ni_certificate",
+                    FloorKind::EfaCertificate,
+                    "NI certificate refuse",
+                )
+            });
+            let limit_id = floor.id.as_str().to_string();
+            // ModelGenerated uncertified → explicit ni_certificate id when applicable
+            let floor = if base.replay_class == Some(ReplayClass::ModelGenerated)
+                && limit_id != "wca_refuse"
+            {
+                Floor::new(
+                    if limit_id == "efa_certificate" {
+                        "efa_certificate"
+                    } else {
+                        "ni_certificate"
+                    },
+                    FloorKind::EfaCertificate,
+                    floor.reason.clone(),
+                )
+            } else {
+                floor
+            };
+            let mut rb = ReceiptBuilder::new()
+                .query(&req.query)
+                .estimated_j(Joules::new(estimated_j + live.ni.estimated_j))
+                .estimate_kind(EstimateKind::Analytical)
+                .measure_source(MeasureSource::CatalogSurrogate)
+                .mu_source(MuSource::Catalog)
+                .limit_fired(floor.clone())
+                .steps(base.cascade_steps.clone())
+                .budget(req.budget)
+                .fabric(
+                    base.fabric_chosen,
+                    base.fabric_inventory
+                        .clone()
+                        .unwrap_or_else(|| self.fabric.clone()),
+                )
+                .certificate_ids(cert_ids)
+                .executed(false)
+                .rationale(format!(
+                    "close REFUSE at live NI certify (ids={:?}; stage_c_measured=false): {}",
+                    [
+                        live.ni.certificate_id.as_str(),
+                        live.ni.efa_id.as_str(),
+                        live.ni.wca_id.as_str()
+                    ],
+                    live.ni.reasons.join("; ")
+                ));
+            if let Some(rc) = base.replay_class {
+                rb = rb.replay_class(rc);
+            }
+            let receipt = rb.build();
+            return Ok(CloseOutcome::Refuse { floor, receipt });
+        }
+
+        // ModelGenerated commits only with NI cert (already allowed above).
+        let mut receipt = base;
+        receipt.executed = Some(false);
+        receipt.certificate_ids = cert_ids.clone();
+        let cert_note = if receipt.replay_class == Some(ReplayClass::ModelGenerated) {
+            format!(
+                "; NI certificate stamped ids={:?}; replay stays ModelGenerated (never Deterministic); stage_c_measured=false",
+                cert_ids
+            )
+        } else {
+            format!("; NI certificate stamped ids={:?}; stage_c_measured=false", cert_ids)
+        };
+        receipt.rationale = format!(
+            "{}; close COMMIT after live in-crate NI/EFA/WCA certify{cert_note}",
+            receipt.rationale
+        );
+
+        if let Some(proposal) = parse_remember(&req.query) {
+            let fact = {
+                let mut store = self.memory_lock();
+                store.commit_proposal(&proposal, Some(receipt.id.clone()))
+            };
+            receipt.answer = Some(format!(
+                "MEMORY_COMMIT key={} value={} {} (valid_from={} tx_id={})",
+                fact.key,
+                fact.value,
+                fact.cite(),
+                fact.valid_from.to_rfc3339(),
+                fact.tx_id
+            ));
+            receipt.citation_ids = vec![fact.id.as_str().to_string()];
+            receipt.replay_class = Some(ReplayClass::Deterministic);
+            receipt.zone = Some(OpenIeZone::Z1);
+            receipt.cascade_answered = Some(CascadeTier::Lookup);
+            receipt.executed = Some(true);
+            receipt.rationale = format!(
+                "{}; bitemporal memory WRITE committed via MoL close (tx_id={})",
+                receipt.rationale, fact.tx_id
+            );
+        }
+
+        Ok(CloseOutcome::Commit { outcome, receipt })
     }
 
     /// Close with injected certify ports (tests / future live adapters).
@@ -532,25 +667,21 @@ impl MixtureOfLimits {
 
         let mut receipt = base;
         receipt.executed = Some(false);
+        let inj_ids = vec![
+            format!("efa-inj:{}", efa_res.reasons.first().cloned().unwrap_or_else(|| "allow".into())),
+            format!("wca-inj:{}", wca_res.reasons.first().cloned().unwrap_or_else(|| "allow".into())),
+        ];
+        receipt.certificate_ids = inj_ids.clone();
         let cert_note = if receipt.replay_class == Some(ReplayClass::ModelGenerated) {
             format!(
-                "; NI certificate stamped (efa+wca allow); replay stays ModelGenerated (never Deterministic); cert_ids=efa:{},wca:{}",
-                efa_res
-                    .reasons
-                    .first()
-                    .cloned()
-                    .unwrap_or_else(|| "allow".into()),
-                wca_res
-                    .reasons
-                    .first()
-                    .cloned()
-                    .unwrap_or_else(|| "allow".into()),
+                "; NI certificate stamped (efa+wca allow); replay stays ModelGenerated (never Deterministic); cert_ids={:?}",
+                inj_ids
             )
         } else {
-            String::new()
+            format!("; cert_ids={:?}", inj_ids)
         };
         receipt.rationale = format!(
-            "{}; close COMMIT after EFA+WCA certify (software-reference){cert_note}",
+            "{}; close COMMIT after EFA+WCA certify (injected ports){cert_note}",
             receipt.rationale
         );
 

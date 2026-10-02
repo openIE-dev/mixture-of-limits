@@ -1268,3 +1268,31 @@ Combined Power (CPU + GPU + ANE): 470 mW
         );
     }
 }
+
+
+/// Tier-1 optional NVML probe (NVIDIA). Never invents `measured_j`.
+///
+/// Soft detection of `nvidia-smi` only. Presence ≠ package joule reading —
+/// without a linked NVML sample API, `measured_j` stays None.
+pub fn probe_nvml_capability() -> MeterCapability {
+    let smi = std::path::Path::new("/usr/bin/nvidia-smi");
+    let smi_local = std::path::Path::new("/usr/local/bin/nvidia-smi");
+    if smi.exists() || smi_local.exists() {
+        return MeterCapability {
+            available: false,
+            source: MeasureSource::Nvml,
+            detail: "nvidia-smi present but MoL NVML sample path not linked; measured_j=None (never invent from utilization %)".into(),
+            platform: "nvml",
+        };
+    }
+    MeterCapability::unavailable(
+        "nvml",
+        "NVML / nvidia-smi not present; Tier-1 NVML measured_j stays None",
+    )
+}
+
+/// Sample NVML when a real reading API is wired. Default: unavailable (never invent).
+pub fn sample_nvml(window_ms: u64) -> MeterSample {
+    let cap = probe_nvml_capability();
+    MeterSample::unavailable(window_ms, format!("NVML sample: {}", cap.detail))
+}

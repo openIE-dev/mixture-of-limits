@@ -47,8 +47,8 @@ Cited already in OpenIE research triad (NI + Satiation papers): System One = typ
 - Not claiming shipped board / FPGA package energy (`board_synth_claimed=false` on soft-ref).
 - Not inventing `measured_j` from catalog Landauer or OpCounter estimates.
 - Not replacing Laya System One for closed typed menus.
-- Not Primitive Distillation Loop in MVP (v2).
-- Not live WCA MCP / full Periodic Stack 258 / Ferric hardware path as default prove.
+- Live WCA **MCP network** / Ferric robot EFA / klere-vm FPGA Stage C package meters remain out of soft-ref prove (in-crate NI certify + Stage C unmetered **are** in prove).
+- Full Periodic Stack 258 live catalog still residual (subset navigator in prove).
 - Not a new consumer brand name without explicit approval (see name table).
 
 ## Physics-informed voice (lock)
@@ -65,4 +65,4 @@ Cited already in OpenIE research triad (NI + Satiation papers): System One = typ
 | This package | `/Users/dcharlot/data-share/vibe-coding/mixture-of-limits-product/` |
 | Clean-room Rust reference | `/Users/dcharlot/Desktop/mol-sync/mixture-of-limits/` (crates + `mol prove`; wired `product/` mirror) |
 | Research hub | `/Users/dcharlot/data-share/vibe-coding/research-openie-web/` → paper §11 DX + Product path |
-| GH | `openIE-dev/research-openie-web` exists; `openIE-dev/mixture-of-limits` named in Cargo.toml but **not yet on GitHub** |
+| GH | `openIE-dev/research-openie-web` + [`openIE-dev/mixture-of-limits`](https://github.com/openIE-dev/mixture-of-limits) (canonical); docs mirrored in `product/` (optional separate `mixture-of-limits-product` deferred) |

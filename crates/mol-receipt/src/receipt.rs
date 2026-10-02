@@ -155,6 +155,9 @@ pub struct MolReceipt {
     /// Fabric/step/joules compute receipts (complement cascade_steps).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub compute_steps: Vec<ComputeStepReceipt>,
+    /// NI / EFA / WCA certificate ids stamped on certify (empty if none).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub certificate_ids: Vec<String>,
     /// Always false — software reference.
     pub board_synth_claimed: bool,
     /// True iff an irreversible side effect ran (automate).
@@ -272,6 +275,7 @@ pub struct ReceiptBuilder {
     encapsulation: Option<EncapsulationReceipt>,
     agent_lane: Option<AgentLaneReceipt>,
     compute_steps: Vec<ComputeStepReceipt>,
+    certificate_ids: Vec<String>,
     executed: Option<bool>,
     rationale: String,
 }
@@ -487,6 +491,12 @@ impl ReceiptBuilder {
         self
     }
 
+    /// Stamp NI/EFA/WCA certificate ids.
+    pub fn certificate_ids(mut self, ids: Vec<String>) -> Self {
+        self.certificate_ids = ids;
+        self
+    }
+
     /// Build unsigned receipt.
     pub fn build(self) -> MolReceipt {
         let mut r = MolReceipt {
@@ -520,6 +530,7 @@ impl ReceiptBuilder {
             encapsulation: self.encapsulation,
             agent_lane: self.agent_lane,
             compute_steps: self.compute_steps,
+            certificate_ids: self.certificate_ids,
             board_synth_claimed: BOARD_SYNTH_CLAIMED,
             executed: self.executed,
             timestamp: Utc::now(),

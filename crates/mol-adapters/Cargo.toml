@@ -26,3 +26,4 @@ mol-core = { workspace = true }
 mol-receipt = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+uuid = { workspace = true }

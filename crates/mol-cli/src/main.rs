@@ -2,6 +2,8 @@
 
 mod prove;
 mod run;
+mod bench;
+mod distill_cmd;
 
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -15,7 +17,8 @@ use mol_adapters::{
 use mol_automate::{Act, ActKind, AgentLoop, AutomateGate, Capability, CapabilitySet, EcosystemCertify, EcosystemCertifyConfig};
 use mol_core::{
     detect_adapter_probes, detect_inventory, inventory_for_schedule, measure_energy_window,
-    meter_status_line, probe_meter_capability, schedule_fabric, AdapterBackendHint, Budget,
+    meter_status_line, probe_meter_capability, run_phase1, schedule_fabric, AdapterBackendHint, Budget,
+    Phase1Config,
     CascadeTier, DeviceKind, FabricInventory, FailClosedPolicy, Joules, MolRequest, MuCatalog,
     QueryKind, BOARD_SYNTH_CLAIMED, DETECT_HONESTY_NOTE, ENERGY_METER_ENABLED,
     FABRIC_DETECT_ENABLED, MACOS_METER_HELP, METER_HONESTY_NOTE,
@@ -147,6 +150,43 @@ enum Commands {
         #[arg(long, default_value_t = 0)]
         sample_ms: u64,
     },
+    /// J/query bench: Mixture of Limits vs always-model / MoE-sim (Estimated|Metered only).
+    Bench {
+        /// Print JSON report.
+        #[arg(long, default_value_t = false)]
+        json: bool,
+    },
+    /// Primitive Distillation Loop v1: certified Model LAST → Lookup/Formula append.
+    Distill {
+        /// Residual proposal text (or full "residual propose …" ask).
+        proposal: String,
+        /// Target gear: lookup | formula.
+        #[arg(long, default_value = "lookup")]
+        gear: String,
+        /// Lookup/formula pattern (default: proposal ask).
+        #[arg(long)]
+        pattern: Option<String>,
+        /// Body / answer to store (default: receipt answer).
+        #[arg(long)]
+        body: Option<String>,
+        /// Distill store JSON path.
+        #[arg(long, default_value = "product/fixtures/distill_store.json")]
+        store: PathBuf,
+        /// Print JSON entry.
+        #[arg(long, default_value_t = false)]
+        json: bool,
+    },
+    /// Phase-1 micro-perception: unstructured → typed AST (when enabled).
+    Phase1 {
+        /// Raw unstructured input.
+        raw: String,
+        /// Enable transducer (default true for this command).
+        #[arg(long, default_value_t = true)]
+        enable: bool,
+        /// Print JSON.
+        #[arg(long, default_value_t = false)]
+        json: bool,
+    },
     /// End-to-end ecosystem certify → single receipt (Agent Lane + fabric + WASM + GrantReceipt).
     EcosystemCertify {
         /// Omit GrantReceipt to exercise refuse path (`grant_receipt_required`).
@@ -233,6 +273,16 @@ fn main() -> ExitCode {
         Commands::Memory => cmd_memory(),
         Commands::Fabric { detect, mock, json } => cmd_fabric(detect, mock, json),
         Commands::Meter { sample_ms } => cmd_meter(sample_ms),
+        Commands::Bench { json } => bench::cmd_bench(json),
+        Commands::Distill {
+            proposal,
+            gear,
+            pattern,
+            body,
+            store,
+            json,
+        } => distill_cmd::cmd_distill(proposal, gear, pattern, body, store, json),
+        Commands::Phase1 { raw, enable, json } => cmd_phase1(raw, enable, json),
         Commands::EcosystemCertify {
             refuse_without_grant,
             receipt_json,
@@ -1269,3 +1319,30 @@ fn cmd_ecosystem_certify(
     }
 }
 
+fn cmd_phase1(raw: String, enable: bool, json: bool) -> ExitCode {
+    let cfg = Phase1Config {
+        enabled: enable,
+        transducer: "rule_ast".into(),
+    };
+    let out = run_phase1(&cfg, &raw);
+    if json {
+        println!("{}", serde_json::to_string_pretty(&out).unwrap());
+    } else {
+        println!("=== mol phase1 — bounded micro-perception ===");
+        println!("enabled={enable}");
+        match &out {
+            mol_core::Phase1Outcome::Typed(ast) => {
+                println!("status=typed kind={} rule={}", ast.kind, ast.rule);
+                println!("typed_query={}", ast.typed_query);
+                println!("estimated_j={:.3e} (catalog; never measured_j)", ast.estimated_j);
+            }
+            mol_core::Phase1Outcome::Passthrough { raw } => {
+                println!("status=passthrough raw={raw}");
+            }
+            mol_core::Phase1Outcome::Unrecognized { reason, .. } => {
+                println!("status=unrecognized reason={reason}");
+            }
+        }
+    }
+    ExitCode::SUCCESS
+}

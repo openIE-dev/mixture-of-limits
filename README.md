@@ -34,7 +34,11 @@ Requires Rust **1.98** (`rust-toolchain.toml`).
 ```bash
 cd /workspace/mixture-of-limits
 cargo test --workspace
-cargo run -p mol-cli -- prove    # PLAN.md criteria — must print VERIFIED and exit 0
+cargo run -p mol-cli -- prove    # PLAN.md + product A1–A13 — must print VERIFIED and exit 0
+cargo run -p mol-cli -- run --chore product/mol.yaml
+cargo run -p mol-cli -- bench    # J/query MoL vs always-model / MoE-sim (Estimated|Metered)
+cargo run -p mol-cli -- phase1 "please close ticket as R-OK"
+cargo run -p mol-cli -- distill "ticket summary" --store /tmp/mol-distill.json
 cargo run -p mol-cli -- agent    # thin mailbox loop: Goal→close→transcript
 cargo run -p mol-cli -- memory   # bitemporal state+memory demo
 cargo run -p mol-cli -- demo
@@ -72,8 +76,9 @@ mixture-of-limits/
     mol-cascade/        # Lookup / Formula / Solver+settle / Model stub
     mol-limits/         # MixtureOfLimits::route + ::close
     mol-automate/       # propose → certify → Commit|Refuse; AgentMailbox loop
-    mol-adapters/       # openie / wca / jouledb / efa / klere stubs
-    mol-cli/            # `mol` binary (ask, demo, agent, meter, replay, **prove**)
+    mol-adapters/       # openie / wca / jouledb / efa / klere + InCrateNiCertify
+    mol-cli/            # `mol` binary (ask, run, bench, phase1, distill, prove, …)
+    product/            # Mixture of Limits product docs + mol.yaml (A1–A13)
     mol-desktop/        # energy harness shell (headless API + optional egui GUI)
 ```
 
@@ -87,6 +92,9 @@ Sibling trees (patterns only — not forked): `openie-leapfrog`, `jouledb`, `wca
 - `FloorKind` — `voi`, `energy`, `grammar`, `efa_certificate`, `settle_refuse`, `primitive_gap`, …
 - `MixtureOfLimits::route` / `::close` — close = route + EFA/WCA certify + receipt
 - `AutomateGate::gate` — capability + certify before commit
+- `InCrateNiCertify` — live in-crate NI/EFA/WCA certify with certificate ids
+- `ResidualModelAdapter` — Model LAST under VoI>0 + budget + cert
+- `EpisodeStore` / `Phase1Config` / `StubShuntHal` / `DistillStore`
 - `StubEfaCertificate` / `StubKlereSettle` / `StubOpenIeRuntime` / `StubWcaCommit`
 
 ---

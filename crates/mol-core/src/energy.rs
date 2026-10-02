@@ -84,6 +84,8 @@ pub enum MeasureSource {
     MacOsEnergy,
     /// Windows energy estimation / ETW. Not implemented — probe stays unavailable.
     WindowsEnergy,
+    /// Tier-2 certified shunt / package meter. Only when a real HAL reading exists.
+    Shunt,
 }
 
 impl MeasureSource {
@@ -99,6 +101,7 @@ impl MeasureSource {
                 | Self::Smc
                 | Self::MacOsEnergy
                 | Self::WindowsEnergy
+                | Self::Shunt
         )
     }
 
@@ -116,6 +119,7 @@ impl MeasureSource {
             Self::Smc => "smc",
             Self::MacOsEnergy => "macos_energy",
             Self::WindowsEnergy => "windows_energy",
+            Self::Shunt => "shunt",
         }
     }
 }

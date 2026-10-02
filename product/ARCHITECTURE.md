@@ -39,7 +39,8 @@ Embodiment stack for the valued product. Companion laws: **Navigation** (Mixture
 ### Phase 1 (bounded front gear)
 
 - Emits typed AST only. Does not replace Formula. Does not become the substrate.
-- MVP: `phase1.enabled=false` — tickets arrive typed.
+- Default chores: `phase1.enabled=false` — tickets arrive typed.
+- Enable path: `phase1.enabled=true` → in-tree **rule AST transducer** (`mol phase1` / `run_phase1`); unrecognized refuses parser-as-model.
 - Cost class: ultra-light; never a second Model LAST parser by default.
 
 ### Phase 2 (Mixture of Limits cascade)
@@ -72,7 +73,7 @@ Meta-routing stays **strictly cheaper than the smallest allowed inference leaf**
 
 Soft-ref default: `board_synth_claimed=false`, `measured_j=None`.
 
-## Primitive Distillation Loop — **v2** (not MVP)
+## Primitive Distillation Loop — **v1 shipped** (`mol distill`)
 
 When grammar is undefined and a residual is worth keeping:
 
@@ -89,7 +90,7 @@ When grammar is undefined and a residual is worth keeping:
   Periodic Stack Present cell (replay class Deterministic)
 ```
 
-Uncertified proposals never become Lookup. Distilled entries carry provenance (source receipt, certify method, replay class). MVP refuses with `primitive_gap` / grammar-miss instead of distilling.
+Uncertified proposals never become Lookup. Distilled entries carry provenance (source receipt, certify method, replay class). Soft-ref still refuses with `primitive_gap` / grammar-miss when not distilling.
 
 ## Clean-room mapping
 
@@ -99,12 +100,14 @@ Uncertified proposals never become Lookup. Distilled entries carry provenance (s
 | Cascade tiers | `mol-cascade` |
 | `route` / `close` | `mol-limits` |
 | Certify gate / agent loop | `mol-automate` |
-| WCA / EFA / Klere stubs | `mol-adapters` |
+| WCA / EFA / Klere + **InCrateNiCertify** | `mol-adapters` |
+| EpisodeStore / Phase1 / ShuntHal | `mol-core` |
+| Residual Model LAST / DistillStore | `mol-cascade` |
 | Receipts | `mol-receipt` |
 | `mol prove` / ask / meter | `mol-cli` |
 
 Reference path: `/Users/dcharlot/Desktop/mol-sync/mixture-of-limits/`  
-Declared GH (not published yet): `https://github.com/openIE-dev/mixture-of-limits`
+GH: [`openIE-dev/mixture-of-limits`](https://github.com/openIE-dev/mixture-of-limits) (clean-room + `product/` mirror).
 
 ## Non-architecture (explicit)
 

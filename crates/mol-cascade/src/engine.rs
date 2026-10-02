@@ -13,8 +13,9 @@ use mol_receipt::{
 
 use crate::grammar::{GrammarCoverage, TierAnswer};
 use crate::lut_gear::CompositeLookup;
+use crate::residual::ResidualModelAdapter;
 use crate::tiers::{
-    ClaimCompose, ClaimRetrieve, FormulaTier, LinearSolver, ModelStub, StubModelEndpoint,
+    ClaimCompose, ClaimRetrieve, FormulaTier, LinearSolver, ModelStub,
     TernarySettle,
 };
 
@@ -90,7 +91,7 @@ impl CascadeEngine {
             retrieve: Box::new(ClaimRetrieve::default()),
             compose: Box::new(ClaimCompose::default()),
             solver: Box::new(SolverGear::default()),
-            model: Box::new(StubModelEndpoint),
+            model: Box::new(ResidualModelAdapter::new()),
             fabric: FabricInventory::software_ref(),
         }
     }

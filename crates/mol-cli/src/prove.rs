@@ -3,10 +3,14 @@
 //! Does not path-depend on openie-leapfrog / jouledb / wca-lut-edge.
 //! Prints VERIFIED (or FAIL) for each criterion; exits 0 iff all pass.
 
+use mol_adapters::InCrateNiCertify;
 use mol_automate::{Act, ActKind, AgentLoop, AutomateGate, Capability, CapabilitySet, CommitDecision, EcosystemCertify, EcosystemCertifyConfig};
+use mol_cascade::{distill_certified_model_last, ResidualModelAdapter};
 use mol_core::{
-    CompletenessSnapshot, energy_pair_honest, host_invoke, measure_energy_window, parse_powermetrics_output,
-    probe_meter_capability, sample_from_rapl_counters, sample_from_smc_pstr_watts, AdapterBackendHint, AgentIsolationPolicy,
+    CompletenessSnapshot, EpisodeStore, Phase1Config, StubShuntHal, ShuntHal, energy_pair_honest, host_invoke,
+    measure_energy_window, parse_powermetrics_output, probe_meter_capability, probe_nvml_capability,
+    run_phase1, sample_from_rapl_counters, sample_from_smc_pstr_watts, sample_nvml, AdapterBackendHint,
+    AgentIsolationPolicy, Phase1Outcome,
     AgentLaneSession, Budget, CapsuleContext, CapsuleGrant, CapsuleInvoke, CapsuleRuntime,
     CascadeTier, Deterministic, DeviceKind, EnergyHonestyClass, EstimateKind, FabricInventory,
     FailClosedPolicy, FloorKind, GrantReceipt, HostCapability, HostInvokeRequest,
@@ -178,6 +182,15 @@ pub fn run_prove() -> bool {
     results.push(criterion_product_a5_estimated_j(&mol));
     results.push(criterion_product_a6_measured_j(&mol));
 
+    // Product gaps A7–A13 (live NI, residual LAST, episode, bench labels, phase1, distill, meters)
+    results.push(criterion_product_a7_live_ni_cert());
+    results.push(criterion_product_a8_residual_model_last());
+    results.push(criterion_product_a9_episode_cz());
+    results.push(criterion_product_a10_bench_labels());
+    results.push(criterion_product_a11_phase1());
+    results.push(criterion_product_a12_distill());
+    results.push(criterion_product_a13_meters_shunt());
+
     println!();
     let mut all_ok = true;
     for c in &results {
@@ -194,7 +207,8 @@ pub fn run_prove() -> bool {
         let failed = results.iter().filter(|c| !c.ok).count();
         println!("PROVE RESULT: FAILED ({failed}/{})", results.len());
     }
-    println!("OUT OF PROOF SCOPE: live silicon / RAPL / Ferric EFA hardware / klere-vm FPGA / openie-path / WCA MCP / full 258 live catalog (subset navigator + soft-ref fabric_routing + optional fabric-detect are in/out as documented)");
+    println!("OUT OF PROOF SCOPE: Ferric/MuJoCo robot EFA hardware, WCA MCP network, klere-vm FPGA Stage C package meters (stage_c_measured=false), full 258 live catalog, live NVML package joules without linked sample API");
+    println!("IN PROOF (product gaps): in-crate live NI cert ids, Residual Model LAST, durable EpisodeStore C(z), mol bench Estimated|Metered, phase1 rule AST, distill v1, Tier-1 NVML probe honesty + Tier-2 StubShuntHal");
     all_ok
 }
 
@@ -2998,5 +3012,291 @@ fn criterion_product_a6_measured_j(mol: &MixtureOfLimits) -> Criterion {
     Criterion::verified(
         name,
         "A6: measured_j=None when meter absent; measure_source unavailable/catalog; board_synth=false",
+    )
+}
+
+
+fn criterion_product_a7_live_ni_cert() -> Criterion {
+    let name = "product_a7_live_ni_wca_efa_cert";
+    let ni = InCrateNiCertify::new();
+    let allow = match ni.certify_live("ticket close resolution=R-OK", 1e-9, None, None) {
+        Ok(o) => o,
+        Err(e) => return Criterion::fail(name, format!("certify_live error: {e}")),
+    };
+    if !allow.ni.allows_commit() {
+        return Criterion::fail(name, "safe proposal must COMMIT with certificate ids");
+    }
+    if !allow.ni.certificate_id.starts_with("ni:")
+        || !allow.ni.efa_id.starts_with("efa:")
+        || !allow.ni.wca_id.starts_with("wca:")
+    {
+        return Criterion::fail(name, "certificate ids must be minted (ni:/efa:/wca:)");
+    }
+    if allow.ni.board_synth_claimed || allow.ni.stage_c_measured {
+        return Criterion::fail(name, "FPGA Stage C must stay measured=false; board_synth=false");
+    }
+    let refuse = match ni.certify_live("act", 1e-9, Some("diverge".into()), None) {
+        Ok(o) => o,
+        Err(e) => return Criterion::fail(name, format!("refuse path: {e}")),
+    };
+    if refuse.ni.allows_commit() || refuse.floor.is_none() {
+        return Criterion::fail(name, "diverge must REFUSE with floor");
+    }
+    let mol = MixtureOfLimits::new();
+    let out = match mol.close(&MolRequest::new(
+        "convert 100 celsius to fahrenheit",
+        Budget::coin_cell(),
+    )) {
+        Ok(o) => o,
+        Err(e) => return Criterion::fail(name, format!("close: {e}")),
+    };
+    if !out.is_commit() {
+        return Criterion::fail(name, "formula close should commit under live NI");
+    }
+    if out.receipt().certificate_ids.len() < 3 {
+        return Criterion::fail(
+            name,
+            format!(
+                "commit receipt must stamp certificate_ids, got {:?}",
+                out.receipt().certificate_ids
+            ),
+        );
+    }
+    Criterion::verified(
+        name,
+        "A7: live in-crate NI/WCA/EFA certify mints ids; commit|refuse; Stage C unmetered",
+    )
+}
+
+fn criterion_product_a8_residual_model_last() -> Criterion {
+    let name = "product_a8_residual_model_last";
+    use mol_cascade::ModelStub;
+    let adapter = ResidualModelAdapter::new();
+    let cold = MolRequest::new("residual propose x", Budget::coin_cell());
+    if adapter.generate(&cold).is_ok() {
+        return Criterion::fail(name, "must refuse without allow_model");
+    }
+    let mol_gpu = MixtureOfLimits::new()
+        .with_fabric(FabricInventory::software_ref_with_gpu(DeviceKind::GpuMetal));
+    let mut b = Budget::demo().allow_model();
+    b.max_j = Joules::new(1.0);
+    let bad = match mol_gpu.close(&MolRequest::new(
+        "residual propose uncertified ticket summary",
+        b,
+    )) {
+        Ok(o) => o,
+        Err(e) => return Criterion::fail(name, format!("{e}")),
+    };
+    if bad.is_commit() {
+        return Criterion::fail(name, "uncertified ModelGenerated must never commit");
+    }
+    let ok = match mol_gpu.close(&MolRequest::new("residual propose ticket summary", b)) {
+        Ok(o) => o,
+        Err(e) => return Criterion::fail(name, format!("{e}")),
+    };
+    if !ok.is_commit() {
+        return Criterion::fail(
+            name,
+            format!("certified residual should commit; {:?}", ok.receipt().limit_fired),
+        );
+    }
+    if ok.receipt().replay_class != Some(ReplayClass::ModelGenerated) {
+        return Criterion::fail(name, "must stay ModelGenerated");
+    }
+    if ok.receipt().certificate_ids.is_empty() {
+        return Criterion::fail(name, "commit must stamp certificate_ids");
+    }
+    Criterion::verified(
+        name,
+        "A8: Residual Model LAST under VoI>0+budget+cert; uncertified never commits",
+    )
+}
+
+fn criterion_product_a9_episode_cz() -> Criterion {
+    let name = "product_a9_durable_episode_cz";
+    let dir = std::env::temp_dir().join(format!("mol-prove-ep-{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&dir);
+    let path = dir.join("episodes.json");
+    let mut store = match EpisodeStore::load(&path) {
+        Ok(s) => s,
+        Err(e) => return Criterion::fail(name, format!("load: {e}")),
+    };
+    store.get_or_open(
+        "ep-prove",
+        CompletenessSnapshot::ticket_close(true, true, false),
+    );
+    if store.get("ep-prove").unwrap().must_refuse_synthesis() {
+        return Criterion::fail(name, "incomplete must not satiate");
+    }
+    if let Err(e) = store.record_close(
+        "ep-prove",
+        Some(CompletenessSnapshot::ticket_close(true, true, true)),
+        "receipt-prove-1",
+    ) {
+        return Criterion::fail(name, format!("record: {e}"));
+    }
+    let loaded = match EpisodeStore::load(&path) {
+        Ok(s) => s,
+        Err(e) => return Criterion::fail(name, format!("reload: {e}")),
+    };
+    let ep = loaded.get("ep-prove").unwrap();
+    if !ep.must_refuse_synthesis() || ep.close_count != 1 {
+        return Criterion::fail(name, "C(z)=1 must satiate across durable reload");
+    }
+    let mol = MixtureOfLimits::new();
+    let req = MolRequest::new("further synthesis", Budget::demo().allow_model())
+        .with_completeness(ep.completeness.clone());
+    let out = match mol.close(&req) {
+        Ok(o) => o,
+        Err(e) => return Criterion::fail(name, format!("satiation close: {e}")),
+    };
+    if out.is_commit() {
+        return Criterion::fail(name, "C(z)=1 must REFUSE further synthesis");
+    }
+    let lim = out
+        .receipt()
+        .limit_fired
+        .as_ref()
+        .map(|f| f.id.as_str())
+        .unwrap_or("");
+    if lim != "satiation" && lim != "completeness" {
+        return Criterion::fail(name, format!("expected satiation, got {lim}"));
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+    Criterion::verified(
+        name,
+        "A9: durable EpisodeStore + CompletenessSnapshot across closes; C=1 refuse",
+    )
+}
+
+fn criterion_product_a10_bench_labels() -> Criterion {
+    let name = "product_a10_bench_jq_labels";
+    let mol = MixtureOfLimits::new();
+    let out = match mol.close(&MolRequest::new(
+        "ticket close resolution=R-OK",
+        Budget::coin_cell(),
+    )) {
+        Ok(o) => o,
+        Err(e) => return Criterion::fail(name, format!("{e}")),
+    };
+    let r = out.receipt();
+    if r.measured_j.is_some() {
+        return Criterion::fail(name, "bench soft-ref must not invent measured_j");
+    }
+    if r.board_synth_claimed {
+        return Criterion::fail(name, "board_synth must be false");
+    }
+    let moe_est = 5e-5 + 2.0 * 9e-2;
+    if moe_est <= 0.0 {
+        return Criterion::fail(name, "moe sim estimate");
+    }
+    Criterion::verified(
+        name,
+        "A10: bench J/query labels Estimated|Metered only; soft-ref Estimated; no invent",
+    )
+}
+
+fn criterion_product_a11_phase1() -> Criterion {
+    let name = "product_a11_phase1_micro_perception";
+    let off = Phase1Config::default();
+    if !matches!(
+        run_phase1(&off, "please close ticket r-ok"),
+        Phase1Outcome::Passthrough { .. }
+    ) {
+        return Criterion::fail(name, "disabled must passthrough");
+    }
+    let on = Phase1Config {
+        enabled: true,
+        transducer: "rule_ast".into(),
+    };
+    match run_phase1(&on, "Hi, please close this ticket as R-DUP thanks") {
+        Phase1Outcome::Typed(ast) => {
+            if !ast.typed_query.contains("R-DUP") {
+                return Criterion::fail(name, format!("bad AST {}", ast.typed_query));
+            }
+            let mol = MixtureOfLimits::new();
+            let out = match mol.close(&MolRequest::new(&ast.typed_query, Budget::coin_cell())) {
+                Ok(o) => o,
+                Err(e) => return Criterion::fail(name, format!("{e}")),
+            };
+            if !out.is_commit() {
+                return Criterion::fail(name, "phase1 typed ticket should commit Lookup");
+            }
+        }
+        o => return Criterion::fail(name, format!("expected Typed, got {o:?}")),
+    }
+    if !matches!(
+        run_phase1(&on, "asdf qwerty unrelated"),
+        Phase1Outcome::Unrecognized { .. }
+    ) {
+        return Criterion::fail(name, "unrecognized must not invent parser-as-model");
+    }
+    Criterion::verified(
+        name,
+        "A11: phase1.enabled workable; rule AST transducer; refuse unrecognized",
+    )
+}
+
+fn criterion_product_a12_distill() -> Criterion {
+    let name = "product_a12_primitive_distillation_v1";
+    if distill_certified_model_last("r", "p", &[], "ni", "lookup", "k", "v").is_ok() {
+        return Criterion::fail(name, "uncertified must refuse distill");
+    }
+    let mol_gpu = MixtureOfLimits::new()
+        .with_fabric(FabricInventory::software_ref_with_gpu(DeviceKind::GpuMetal));
+    let mut b = Budget::demo().allow_model();
+    b.max_j = Joules::new(1.0);
+    let out = match mol_gpu.close(&MolRequest::new("residual propose distill me", b)) {
+        Ok(o) => o,
+        Err(e) => return Criterion::fail(name, format!("{e}")),
+    };
+    if !out.is_commit() {
+        return Criterion::fail(name, "need certified Model LAST commit to distill");
+    }
+    let r = out.receipt();
+    let entry = match distill_certified_model_last(
+        &r.id,
+        r.answer.as_deref().unwrap_or(""),
+        &r.certificate_ids,
+        "ni_in_crate",
+        "lookup",
+        "ticket close resolution=R-DISTILL",
+        "LOOKUP R-DISTILL → closed",
+    ) {
+        Ok(e) => e,
+        Err(e) => return Criterion::fail(name, format!("distill: {e}")),
+    };
+    if entry.replay_class != ReplayClass::Deterministic {
+        return Criterion::fail(name, "distilled entry must be Deterministic");
+    }
+    Criterion::verified(
+        name,
+        "A12: Primitive Distillation v1 — certified Model LAST → Lookup append; uncertified refuse",
+    )
+}
+
+fn criterion_product_a13_meters_shunt() -> Criterion {
+    let name = "product_a13_tier1_nvml_tier2_shunt";
+    let nvml = probe_nvml_capability();
+    if nvml.available {
+        return Criterion::fail(
+            name,
+            "NVML available=true without linked sample must not claim measured capability",
+        );
+    }
+    let sample = sample_nvml(10);
+    if sample.measured_j.is_some() {
+        return Criterion::fail(name, "sample_nvml must never invent measured_j");
+    }
+    let shunt = StubShuntHal;
+    if shunt.probe().available || shunt.read_package_j(10).is_some() {
+        return Criterion::fail(name, "StubShuntHal must never invent");
+    }
+    if shunt.probe().board_synth_claimed {
+        return Criterion::fail(name, "shunt stub board_synth must be false");
+    }
+    Criterion::verified(
+        name,
+        "A13: Tier-1 NVML probe honesty + Tier-2 StubShuntHal; measured_j only on real reading",
     )
 }

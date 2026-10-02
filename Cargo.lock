@@ -2173,6 +2173,7 @@ dependencies = [
  "mol-receipt",
  "serde",
  "serde_json",
+ "uuid",
 ]
 
 [[package]]
@@ -2194,6 +2195,7 @@ dependencies = [
  "mol-core",
  "mol-receipt",
  "serde",
+ "serde_json",
  "thiserror 2.0.21",
 ]
 
@@ -2221,6 +2223,7 @@ dependencies = [
  "chrono",
  "pollster",
  "serde",
+ "serde_json",
  "thiserror 2.0.21",
  "wasmtime",
  "wgpu",

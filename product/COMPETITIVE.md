@@ -31,7 +31,7 @@
 
 ```bash
 cd /Users/dcharlot/Desktop/mol-sync/mixture-of-limits
-cargo run -p mol-cli -- prove          # PLAN + product A1–A6
+cargo run -p mol-cli -- prove          # PLAN + product A1–A13
 cargo run -p mol-cli -- run --chore product/mol.yaml
 cargo run -p mol-cli -- run --chore product/chores/financial_risk_scoring.yaml
 ```

@@ -65,6 +65,16 @@ Run {
 
 Implementation lives beside `prove.rs` as `run.rs`: parse yaml → build `MolRequest` / floors → `MixtureOfLimits::close` → print receipt. MVP may start as a stub that validates schema and delegates known asks to existing close paths.
 
-## Roadmap CLI (paper §11.5 — not MVP claim)
+## Shipped product CLI (gaps closed)
 
-`mol dev` (watch, replay, receipt diff) → `mol bench` (J/query vs MoE baselines with Estimated|Metered labels only).
+```bash
+mol prove
+mol run --chore product/mol.yaml
+mol bench [--json]
+mol phase1 "please close ticket as R-OK"
+mol distill "residual text" --gear lookup --store product/fixtures/distill_store.json
+```
+
+## Roadmap polish
+
+`mol dev` (watch, receipt diff UI) — not required for A1–A13.

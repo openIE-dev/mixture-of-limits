@@ -73,9 +73,67 @@ Physics-informed acceptance. Soft-ref proves constructive existence; these tests
 
 **Prove bridge:** OS meter honesty (PLAN P20); soft-ref prove keeps `measured_j=None`.
 
-## Acceptance matrix (MVP)
+## A7 — Live in-crate NI/WCA/EFA certify
 
-| ID | Must pass before product “MVP done” |
+| Field | Value |
+|---|---|
+| Given | Close path uses `InCrateNiCertify` (not soft-ref-only without ids) |
+| When | Proposal certified allow / diverge refuse |
+| Then | Receipt stamps `certificate_ids` (`ni:`/`efa:`/`wca:`); commit\|refuse |
+| And | FPGA Stage C stays `stage_c_measured=false`; `board_synth_claimed=false` |
+
+## A8 — Residual Model LAST leaf
+
+| Field | Value |
+|---|---|
+| Given | VoI>0 + `allow_model` + budget + fabric |
+| When | Residual adapter proposes |
+| Then | ReplayClass=`ModelGenerated`; uncertified never commits |
+| And | Certified commit keeps ModelGenerated + certificate ids |
+
+## A9 — Durable episode C(z)
+
+| Field | Value |
+|---|---|
+| Given | `EpisodeStore` with CompletenessSnapshot |
+| When | Closes across process / reload |
+| Then | C(z)=1 satiates; further synthesis REFUSE `satiation` |
+
+## A10 — `mol bench` J/query
+
+| Field | Value |
+|---|---|
+| Given | MoL vs always-model vs MoE-sim |
+| When | `mol bench` |
+| Then | Energy labeled **Estimated** or **Metered** only; never invent `measured_j` |
+
+## A11 — Phase-1 micro-perception
+
+| Field | Value |
+|---|---|
+| Given | `phase1.enabled=true` |
+| When | Unstructured ticket-ish input |
+| Then | Rule AST transducer emits typed query; unrecognized refuses parser-as-model |
+
+## A12 — Primitive Distillation Loop v1
+
+| Field | Value |
+|---|---|
+| Given | Certified Model LAST commit |
+| When | `mol distill` / `distill_certified_model_last` |
+| Then | Lookup/Formula append with Deterministic replay; uncertified refuses |
+
+## A13 — Tier-1 NVML + Tier-2 shunt HAL
+
+| Field | Value |
+|---|---|
+| Given | Optional meters |
+| When | Probe absent / stub |
+| Then | `measured_j=None`; StubShuntHal never invents; NVML without sample API stays unavailable |
+
+## Acceptance matrix
+
+| ID | Must pass |
 |---|---|
 | A1 | Grammar/LUT path model-cold |
 | A2 | VoI=0 refuse |
@@ -83,16 +141,24 @@ Physics-informed acceptance. Soft-ref proves constructive existence; these tests
 | A4 | NI cert gate on ModelGenerated |
 | A5 | estimated_j always |
 | A6 | measured_j honesty |
+| A7 | Live in-crate NI certify + certificate ids |
+| A8 | Residual Model LAST + cert gate |
+| A9 | Durable EpisodeStore C(z) |
+| A10 | `mol bench` Estimated\|Metered only |
+| A11 | Phase-1 rule AST workable |
+| A12 | Distill v1 certified→Lookup |
+| A13 | Tier-1 NVML + Tier-2 shunt honesty |
 
 ## How to run (today)
 
 ```bash
 cd /Users/dcharlot/Desktop/mol-sync/mixture-of-limits
 cargo test --workspace
-cargo run -p mol-cli -- prove          # PLAN.md + product A1–A6 VERIFIED
+cargo run -p mol-cli -- prove          # PLAN.md + product A1–A13 VERIFIED (42)
 cargo run -p mol-cli -- run --chore product/mol.yaml
-cargo run -p mol-cli -- run --chore product/chores/financial_risk_scoring.yaml
-# Golden fixtures: product/fixtures/a1.yaml … a6.yaml (scenario field)
+cargo run -p mol-cli -- bench
+cargo run -p mol-cli -- phase1 "please close ticket as R-OK"
+cargo run -p mol-cli -- distill "ticket summary" --store product/fixtures/distill_store.json
 ```
 
-`mol prove` embeds product acceptance A1–A6. Competitive positioning: [COMPETITIVE.md](./COMPETITIVE.md).
+`mol prove` embeds product acceptance A1–A13. Competitive positioning: [COMPETITIVE.md](./COMPETITIVE.md).
