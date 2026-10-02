@@ -9,6 +9,7 @@
 | **mol_cascade** | Mixture of Limits Lookup → Formula → Solver → Model LAST | Floors first; VoI / `C(z)=1` refuse; NI certify |
 | **frontier_sim** | Always-model / frontier catalog surrogate | Burns model joules; ignores satiation / VoI refuse law |
 | **system_one_leaf** | Jev / Laya-class typed leaf stub | Known options → decide; **no** economic satiation; no VoI refuse |
+| **real_leaf** (optional) | OpenAI-compatible Model LAST (`--endpoint`) | Same close-law miss as System One on C=1 / VoI=0; offline stub if no endpoint |
 
 | Metric | Meaning |
 |---|---|
@@ -25,10 +26,13 @@ External [Jev Arena](https://github.com/theaiautomators/jev-arena) remains usefu
 cd /Users/dcharlot/Desktop/mol-sync/mixture-of-limits
 cargo run -p mol-cli -- arena
 cargo run -p mol-cli -- arena --json
+cargo run -p mol-cli -- arena --endpoint http://127.0.0.1:8080/v1 --profile laya
 cargo run -p mol-cli -- bench --arena   # same path
 cargo run -p mol-cli -- bench           # classic J/query vs always-model / MoE-sim
 cargo run -p mol-cli -- prove           # includes A10 labels + A14 arena honesty
 ```
+
+Published soft-ref table: [ARENA_RESULTS.md](./ARENA_RESULTS.md). Model LAST adapter: offline stub by default; `--endpoint` for OpenAI-compatible inference; HF paths for Laya / Jev / Decider are documented — never invent `measured_j`.
 
 Soft-ref never invents `measured_j`. Frontier / System One / MoE-sim joules are **Estimated** catalog surrogates — not RAPL, not Arena GPU package joules.
 
@@ -36,11 +40,11 @@ Soft-ref never invents `measured_j`. Frontier / System One / MoE-sim joules are 
 
 | Kind | Example ask | Expect |
 |---|---|---|
-| Ticket-close LUT | `ticket close resolution=R-HOWTO` | Commit Lookup (model cold) |
-| Risk LUT | `risk score band=RISK-MED` | Commit Lookup |
-| Typed decision | `typed decide pick=D-APPROVE options=[…]` | Commit Lookup |
-| Satiation | same asks + `C(z)=1` snapshot | MoL **REFUSE** `satiation`; peers still commit |
-| VoI | free-form poem | MoL **REFUSE** `voi`; peers still commit |
+| Ticket-close LUT | `R-HOWTO` / `R-OK` / `R-DUP` / `R-BUGFIX` / `R-WONTFIX` / `R-REFUND` | Commit Lookup (model cold) |
+| Risk LUT | `RISK-LOW` / `RISK-MED` / `RISK-HIGH` | Commit Lookup |
+| Typed decision | `D-APPROVE` / `D-DENY` / `D-ESCALATE` | Commit Lookup |
+| Satiation | ticket / risk / typed + `C(z)=1` | MoL **REFUSE** `satiation`; peers still commit |
+| VoI=0 | free-form poem / essay / story | MoL **REFUSE** `voi`; peers still commit |
 
 ## Recommended operator workflow
 

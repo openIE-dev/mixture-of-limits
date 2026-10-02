@@ -37,7 +37,7 @@ cargo test --workspace
 cargo run -p mol-cli -- prove    # PLAN.md + product A1–A14 — must print VERIFIED and exit 0
 cargo run -p mol-cli -- run --chore product/mol.yaml
 cargo run -p mol-cli -- bench    # J/query MoL vs always-model / MoE-sim (Estimated|Metered)
-cargo run -p mol-cli -- arena    # head-on typed/ticket/risk vs frontier_sim + system_one_leaf
+cargo run -p mol-cli -- arena    # head-on typed/ticket/risk vs frontier_sim + system_one_leaf (+ optional real_leaf)
 cargo run -p mol-cli -- phase1 "please close ticket as R-OK"
 cargo run -p mol-cli -- distill "ticket summary" --store /tmp/mol-distill.json
 cargo run -p mol-cli -- agent    # thin mailbox loop: Goal→close→transcript

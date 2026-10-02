@@ -52,3 +52,4 @@ sha2 = "0.10"
 hex = "0.4"
 uuid = { version = "1", features = ["v4", "serde"] }
 tokio = { version = "1", default-features = false, features = ["rt", "macros"] }
+ureq = { version = "2", default-features = false, features = ["json", "tls"] }

@@ -138,7 +138,7 @@ Physics-informed acceptance. Soft-ref proves constructive existence; these tests
 |---|---|
 | Given | Arena chores: typed decision / ticket-close / risk |
 | When | `mol arena` (or `mol bench --arena`) |
-| Then | MoL cascade vs frontier_sim vs system_one_leaf; metrics correct_close, refuse_when_C=1, estimated_j (Estimated), latency; never invent `measured_j` |
+| Then | MoL cascade vs frontier_sim vs system_one_leaf (+ optional real_leaf via `--endpoint`); metrics correct_close, refuse_when_C=1, estimated_j (Estimated), latency; never invent `measured_j` |
 
 ## Acceptance matrix
 
@@ -168,6 +168,7 @@ cargo run -p mol-cli -- prove          # PLAN.md + product A1–A14
 cargo run -p mol-cli -- run --chore product/mol.yaml
 cargo run -p mol-cli -- bench
 cargo run -p mol-cli -- arena
+# publish table: product/ARENA_RESULTS.md (from actual run)
 cargo run -p mol-cli -- phase1 "please close ticket as R-OK"
 cargo run -p mol-cli -- distill "ticket summary" --store product/fixtures/distill_store.json
 ```

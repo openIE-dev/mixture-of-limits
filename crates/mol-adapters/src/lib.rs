@@ -15,6 +15,7 @@ mod klere;
 mod openie;
 mod wca;
 mod ni_live;
+mod model_last;
 
 pub use efa::{
     live_efa_stub, EfaCertResult, EfaCertificatePort, EfaDecision, EfaProposal, StubEfaCertificate,
@@ -27,6 +28,11 @@ pub use klere::{
 pub use openie::{live_ask_stub, OpenIeAskResult, OpenIeRuntimePort, StubOpenIeRuntime};
 pub use wca::{live_wca_stub, software_reference_cert, StubWcaCommit, WcaCertResult, WcaCommitPort};
 pub use ni_live::{InCrateNiCertify, LiveCertOutcome, NiCertificate};
+pub use model_last::{
+    live_model_last_stub, model_last_from_endpoint, ModelLastPort, ModelLastProfile,
+    ModelLastProposal, OpenAiCompatibleModelLast, StubModelLast,
+    MODEL_LAST_ENDPOINT_ESTIMATED_J, MODEL_LAST_STUB_ESTIMATED_J,
+};
 
 /// Crate version.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

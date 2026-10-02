@@ -13,6 +13,7 @@ Competes head-on: floors win when they exist; Model LAST when needed; peers age;
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Dual-phase → MoL → NI → satiation; distillation v1 |
 | [COMPETITIVE.md](./COMPETITIVE.md) | Head-on vs frontier / System One / LLM agents — correct_close, refuse-when-C=1, estimated_j |
 | [ARENA.md](./ARENA.md) | `mol arena` typed/ticket/risk vs frontier_sim + system_one_leaf |
+| [ARENA_RESULTS.md](./ARENA_RESULTS.md) | Published soft-ref scoreboard from actual `mol arena` run |
 | [fixtures/](./fixtures/) | Golden A1–A6 + arena chore YAMLs |
 | [cli/MOL_CLI.md](./cli/MOL_CLI.md) | `mol prove` / `mol run` / `mol arena` Rust outline |
 | [refs/INVENTORY.md](./refs/INVENTORY.md) | Disk + GH + Laya citation map |

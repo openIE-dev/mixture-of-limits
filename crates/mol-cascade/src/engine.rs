@@ -102,6 +102,12 @@ impl CascadeEngine {
         self
     }
 
+    /// Replace Model LAST leaf (default: ResidualModelAdapter).
+    pub fn with_model(mut self, model: Box<dyn ModelStub>) -> Self {
+        self.model = model;
+        self
+    }
+
     /// Run MathGround cascade under request budget.
     pub fn run(&self, req: &MolRequest) -> Result<CascadeResult> {
         let mut steps = Vec::new();

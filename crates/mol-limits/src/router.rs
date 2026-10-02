@@ -4,7 +4,7 @@ use mol_adapters::{
     EfaCertificatePort, EfaDecision, EfaProposal, InCrateNiCertify,
     WcaCommitPort,
 };
-use mol_cascade::{CascadeEngine, CascadeResult};
+use mol_cascade::{CascadeEngine, CascadeResult, ModelStub};
 use std::sync::Mutex;
 
 use mol_core::{
@@ -124,10 +124,16 @@ impl MixtureOfLimits {
         }
     }
 
-    /// With custom fabric inventory (propagates to cascade).
+    /// With custom fabric inventory (propagates to cascade; preserves Model LAST leaf).
     pub fn with_fabric(mut self, fabric: FabricInventory) -> Self {
         self.fabric = fabric.clone();
-        self.cascade = CascadeEngine::new().with_fabric(fabric);
+        self.cascade = self.cascade.with_fabric(fabric);
+        self
+    }
+
+    /// Replace Model LAST residual leaf (stub or OpenAI-compatible adapter).
+    pub fn with_model(mut self, model: Box<dyn ModelStub>) -> Self {
+        self.cascade = self.cascade.with_model(model);
         self
     }
 

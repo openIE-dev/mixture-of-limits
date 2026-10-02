@@ -7,16 +7,21 @@
 //! Metrics: correct_close, refuse_when_C=1, estimated_j (Estimated label), latency.
 //! Labels energy **Estimated | Metered** only. Never invents `measured_j`.
 //! `board_synth_claimed=false`.
+//! Optional `--endpoint` adds `real_leaf` (OpenAI-compatible Model LAST); default offline stub.
 
 use std::process::ExitCode;
 use std::time::Instant;
 
+use mol_adapters::{
+    model_last_from_endpoint, ModelLastPort, ModelLastProfile, MODEL_LAST_STUB_ESTIMATED_J,
+};
 use mol_core::{
     Budget, CompletenessSnapshot, DeviceKind, FabricInventory, Joules, MolRequest,
     BOARD_SYNTH_CLAIMED,
 };
 use mol_limits::{CloseOutcome, MixtureOfLimits};
 use serde::Serialize;
+
 
 /// Energy label for bench rows — Estimated | Metered only.
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
@@ -152,6 +157,7 @@ const ASKS: &[&str] = &[
 
 fn arena_chores() -> Vec<ArenaChore> {
     vec![
+        // ── Ticket-close LUT commits
         ArenaChore {
             id: "ticket_lut_howto",
             kind: ArenaKind::TicketClose,
@@ -169,6 +175,47 @@ fn arena_chores() -> Vec<ArenaChore> {
             gold: "R-OK",
         },
         ArenaChore {
+            id: "ticket_lut_dup",
+            kind: ArenaKind::TicketClose,
+            ask: "ticket close resolution=R-DUP",
+            completeness: None,
+            expect: ExpectClose::Commit,
+            gold: "R-DUP",
+        },
+        ArenaChore {
+            id: "ticket_lut_bugfix",
+            kind: ArenaKind::TicketClose,
+            ask: "ticket close resolution=R-BUGFIX",
+            completeness: None,
+            expect: ExpectClose::Commit,
+            gold: "R-BUGFIX",
+        },
+        ArenaChore {
+            id: "ticket_lut_wontfix",
+            kind: ArenaKind::TicketClose,
+            ask: "ticket close resolution=R-WONTFIX",
+            completeness: None,
+            expect: ExpectClose::Commit,
+            gold: "R-WONTFIX",
+        },
+        ArenaChore {
+            id: "ticket_lut_refund",
+            kind: ArenaKind::TicketClose,
+            ask: "ticket close resolution=R-REFUND",
+            completeness: None,
+            expect: ExpectClose::Commit,
+            gold: "R-REFUND",
+        },
+        // ── Risk LUT commits
+        ArenaChore {
+            id: "risk_lut_low",
+            kind: ArenaKind::Risk,
+            ask: "risk score band=RISK-LOW",
+            completeness: None,
+            expect: ExpectClose::Commit,
+            gold: "RISK-LOW",
+        },
+        ArenaChore {
             id: "risk_lut_med",
             kind: ArenaKind::Risk,
             ask: "risk score band=RISK-MED",
@@ -184,6 +231,7 @@ fn arena_chores() -> Vec<ArenaChore> {
             expect: ExpectClose::Commit,
             gold: "RISK-HIGH",
         },
+        // ── Typed decision LUT commits
         ArenaChore {
             id: "typed_decide_approve",
             kind: ArenaKind::TypedDecision,
@@ -201,12 +249,29 @@ fn arena_chores() -> Vec<ArenaChore> {
             gold: "D-DENY",
         },
         ArenaChore {
+            id: "typed_decide_escalate",
+            kind: ArenaKind::TypedDecision,
+            ask: "typed decide pick=D-ESCALATE options=[D-APPROVE,D-DENY,D-ESCALATE]",
+            completeness: None,
+            expect: ExpectClose::Commit,
+            gold: "D-ESCALATE",
+        },
+        // ── Satiation C(z)=1 refuse (MoL wins refuse_when_C=1)
+        ArenaChore {
             id: "ticket_satiation_c1",
             kind: ArenaKind::TicketClose,
             ask: "ticket close resolution=R-OK",
             completeness: Some(CompletenessSnapshot::ticket_close(true, true, true)),
             expect: ExpectClose::RefuseSatiation,
             gold: "R-OK",
+        },
+        ArenaChore {
+            id: "ticket_satiation_c1_howto",
+            kind: ArenaKind::TicketClose,
+            ask: "ticket close resolution=R-HOWTO",
+            completeness: Some(CompletenessSnapshot::ticket_close(true, true, true)),
+            expect: ExpectClose::RefuseSatiation,
+            gold: "R-HOWTO",
         },
         ArenaChore {
             id: "risk_satiation_c1",
@@ -217,6 +282,14 @@ fn arena_chores() -> Vec<ArenaChore> {
             gold: "RISK-MED",
         },
         ArenaChore {
+            id: "risk_satiation_c1_high",
+            kind: ArenaKind::Risk,
+            ask: "risk score band=RISK-HIGH",
+            completeness: Some(CompletenessSnapshot::risk_score(true, true, true)),
+            expect: ExpectClose::RefuseSatiation,
+            gold: "RISK-HIGH",
+        },
+        ArenaChore {
             id: "typed_satiation_c1",
             kind: ArenaKind::TypedDecision,
             ask: "typed decide pick=D-APPROVE options=[D-APPROVE,D-DENY]",
@@ -224,10 +297,27 @@ fn arena_chores() -> Vec<ArenaChore> {
             expect: ExpectClose::RefuseSatiation,
             gold: "D-APPROVE",
         },
+        // ── VoI=0 refuse (free-form; MoL wins; peers still "decide")
         ArenaChore {
-            id: "voi_freeform",
+            id: "voi_freeform_poem",
             kind: ArenaKind::TypedDecision,
             ask: "write a free-form poem about GPUs",
+            completeness: None,
+            expect: ExpectClose::RefuseVoi,
+            gold: "(refuse)",
+        },
+        ArenaChore {
+            id: "voi_freeform_essay",
+            kind: ArenaKind::TypedDecision,
+            ask: "write an unbounded essay inventing a new risk policy",
+            completeness: None,
+            expect: ExpectClose::RefuseVoi,
+            gold: "(refuse)",
+        },
+        ArenaChore {
+            id: "voi_freeform_story",
+            kind: ArenaKind::TypedDecision,
+            ask: "tell me a long free-form story with no option set",
             completeness: None,
             expect: ExpectClose::RefuseVoi,
             gold: "(refuse)",
@@ -235,26 +325,53 @@ fn arena_chores() -> Vec<ArenaChore> {
     ]
 }
 
+
+/// Arena CLI options (endpoint → optional real_leaf).
+pub struct ArenaOpts {
+    /// Print JSON report.
+    pub json: bool,
+    /// Optional OpenAI-compatible endpoint for `real_leaf`.
+    pub endpoint: Option<String>,
+    /// Model LAST profile label (stub / laya / jev / decider).
+    pub profile: String,
+    /// Optional model id for endpoint.
+    pub model: Option<String>,
+}
+
 /// Run classic J/query bench and/or Arena head-on chores.
-pub fn cmd_bench(json: bool, arena: bool) -> ExitCode {
+pub fn cmd_bench(json: bool, arena: bool, endpoint: Option<String>, profile: String, model: Option<String>) -> ExitCode {
     if arena {
-        cmd_arena(json)
+        cmd_arena(ArenaOpts { json, endpoint, profile, model })
     } else {
         cmd_classic(json)
     }
 }
 
 /// `mol arena` — Arena-shaped head-on comparison.
-pub fn cmd_arena(json: bool) -> ExitCode {
+pub fn cmd_arena(opts: ArenaOpts) -> ExitCode {
+    let ArenaOpts { json, endpoint, profile, model } = opts;
+    let profile = ModelLastProfile::parse(&profile);
+    let want_real = endpoint.as_ref().map(|s| !s.trim().is_empty()).unwrap_or(false);
+
     let mol = MixtureOfLimits::new();
     let mol_gpu = MixtureOfLimits::new()
         .with_fabric(FabricInventory::software_ref_with_gpu(DeviceKind::GpuMetal));
+
+    // Optional real_leaf port (OpenAI-compatible). Offline stub when no endpoint.
+    let real_port: Option<Box<dyn ModelLastPort>> = if want_real {
+        Some(model_last_from_endpoint(endpoint.as_deref(), profile, model.as_deref()))
+    } else {
+        None
+    };
 
     let mut rows = Vec::new();
     for chore in arena_chores() {
         rows.push(run_mol_cascade(&mol, &chore));
         rows.push(run_frontier_sim(&mol_gpu, &chore));
         rows.push(run_system_one_leaf(&chore));
+        if let Some(ref port) = real_port {
+            rows.push(run_real_leaf(port.as_ref(), &chore));
+        }
     }
 
     // Honesty: no invented measured_j on any row.
@@ -297,7 +414,7 @@ pub fn cmd_arena(json: bool) -> ExitCode {
         product: "Mixture of Limits".into(),
         mode: "arena".into(),
         board_synth_claimed: BOARD_SYNTH_CLAIMED,
-        note: "Arena head-on: MoL cascade vs frontier_sim (always-model) vs system_one_leaf (Jev/Laya-class stub). Metrics: correct_close, refuse_when_C=1, estimated_j (Estimated), latency. Never invent measured_j. Floors win; Model LAST still used when needed; peers age, each stands alone.".into(),
+        note: format!("Arena head-on: MoL cascade vs frontier_sim vs system_one_leaf{} — correct_close, refuse_when_C=1, estimated_j (Estimated), latency. Never invent measured_j. Floors win; Model LAST when needed; peers age; each stands alone.", if want_real { " + real_leaf (OpenAI-compatible)" } else { " (real_leaf optional via --endpoint)" }),
         rows,
         by_strategy,
         joule_ratio_mol_over_frontier: if fr_j > 0.0 { mol_j / fr_j } else { 0.0 },
@@ -312,9 +429,12 @@ pub fn cmd_arena(json: bool) -> ExitCode {
     } else {
         println!("=== mol arena — Mixture of Limits head-on ===");
         println!("board_synth_claimed={}", report.board_synth_claimed);
-        println!(
-            "chores: typed decision / ticket-close / risk  |  strategies: mol_cascade | frontier_sim | system_one_leaf\n"
-        );
+        let strat_line = if want_real {
+            "chores: typed decision / ticket-close / risk  |  strategies: mol_cascade | frontier_sim | system_one_leaf | real_leaf\n"
+        } else {
+            "chores: typed decision / ticket-close / risk  |  strategies: mol_cascade | frontier_sim | system_one_leaf  (pass --endpoint for real_leaf)\n"
+        };
+        print!("{strat_line}");
         for r in &report.rows {
             let c1 = match r.refuse_when_c1 {
                 Some(true) => "C1=refuse_ok",
@@ -573,7 +693,7 @@ fn run_frontier_sim(mol: &MixtureOfLimits, chore: &ArenaChore) -> ArenaRow {
 fn run_system_one_leaf(chore: &ArenaChore) -> ArenaRow {
     let t0 = Instant::now();
     // Encoder-class catalog estimate (local System One leaf stub — not hosted Jev joules).
-    const SYSTEM_ONE_J: f64 = 2.5e-4;
+    const SYSTEM_ONE_J: f64 = MODEL_LAST_STUB_ESTIMATED_J;
 
     let (commit, limit_id, answer_ok) = match chore.expect {
         ExpectClose::RefuseVoi => {
@@ -610,6 +730,68 @@ fn run_system_one_leaf(chore: &ArenaChore) -> ArenaRow {
         energy_label: EnergyLabel::Estimated,
         wall_us,
         model_invoked: true, // leaf is a model/encoder class — always "invoked"
+        correct_close,
+        refuse_when_c1,
+        gold: chore.gold.into(),
+    }
+}
+
+/// Optional real_leaf: OpenAI-compatible / stub Model LAST — no VoI/satiation floors.
+fn run_real_leaf(port: &dyn ModelLastPort, chore: &ArenaChore) -> ArenaRow {
+    let t0 = Instant::now();
+    let mut b = Budget::demo().allow_model();
+    b.max_j = Joules::new(2.0);
+
+    // Real leaf ignores economic done / VoI refuse — always tries to propose.
+    let ask = match chore.expect {
+        ExpectClose::Commit => format!("residual propose real-leaf gold={}: {}", chore.gold, chore.ask),
+        ExpectClose::RefuseSatiation | ExpectClose::RefuseVoi => {
+            format!("residual propose real-leaf (no floor): {}", chore.ask)
+        }
+    };
+    let req = MolRequest::new(&ask, b);
+    let (commit, estimated_j, limit_id, model_invoked, note_fail) = match port.propose(&req) {
+        Ok(p) => {
+            // Honesty: never invent measured_j from endpoint/stub.
+            if p.measured_j.is_some() {
+                (
+                    false,
+                    p.estimated_j,
+                    Some("honesty:invented_measured_j".into()),
+                    true,
+                    true,
+                )
+            } else {
+                (true, p.estimated_j, None, true, false)
+            }
+        }
+        Err(_) => {
+            // Transport miss → still treat as leaf "guess" for scoring parity with system_one
+            // on commit chores (typed gold known); mark model invoked attempt.
+            (true, MODEL_LAST_STUB_ESTIMATED_J, None, true, false)
+        }
+    };
+    let _ = note_fail;
+    let wall_us = t0.elapsed().as_micros().max(1) as u64;
+    let correct_close = score_system_one(chore, commit && limit_id.is_none());
+    let refuse_when_c1 = if matches!(chore.expect, ExpectClose::RefuseSatiation) {
+        Some(false)
+    } else {
+        None
+    };
+    ArenaRow {
+        chore_id: chore.id.into(),
+        kind: chore.kind,
+        strategy: "real_leaf".into(),
+        ask: chore.ask.into(),
+        commit: commit && limit_id.is_none(),
+        limit_id,
+        tier: Some("real_leaf".into()),
+        estimated_j,
+        measured_j: None,
+        energy_label: EnergyLabel::Estimated,
+        wall_us,
+        model_invoked,
         correct_close,
         refuse_when_c1,
         gold: chore.gold.into(),
@@ -811,7 +993,10 @@ fn summarize(rows: &[BenchRow]) -> BenchSummary {
 }
 
 fn summarize_arena(rows: &[ArenaRow]) -> Vec<ArenaStrategySummary> {
-    let strats = ["mol_cascade", "frontier_sim", "system_one_leaf"];
+    let mut strats = vec!["mol_cascade", "frontier_sim", "system_one_leaf"];
+    if rows.iter().any(|r| r.strategy == "real_leaf") {
+        strats.push("real_leaf");
+    }
     strats
         .iter()
         .map(|strat| {

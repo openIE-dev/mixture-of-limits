@@ -1,0 +1,34 @@
+# Arena fixture — VoI=0 free-form refuse
+version: "0.1"
+product: mixture-of-limits
+chore:
+  id: arena.voi_refuse
+  title: Arena VoI refuse free-form
+  scenario: arena_voi_refuse
+  ask: "write an unbounded essay inventing a new risk policy"
+  completeness:
+    id: C_ticket_close
+    clauses:
+      - resolution_code_set: false
+      - customer_ack_or_sla_elapsed: false
+      - no_open_blocker: false
+limits:
+  - id: grammar
+    kind: grammar
+  - id: voi
+    kind: voi
+  - id: energy
+    kind: energy
+    max_estimated_j: 1.0e-3
+  - id: ni_certificate
+    kind: efa_certificate
+  - id: satiation
+    kind: completeness
+cascade:
+  allow_model: false
+measurement:
+  tier: 0
+  estimated_j: always
+  measured_j: only_when_meter_present
+  board_synth_claimed: false
+# expect: refuse_voi

@@ -14,9 +14,9 @@ On the clean-room soft-ref harness:
 
 | Strategy | correct_close | refuse_when_C=1 | mean estimated_j |
 |---|---|---|---|
-| mol_cascade | 10/10 | 3/3 | ~1e-16 |
-| frontier_sim | 6/10 | 0/3 | 5e-1 |
-| system_one_leaf | 6/10 | 0/3 | 2.5e-4 |
+| mol_cascade | 20/20 | 5/5 | ~1.1e-16 |
+| frontier_sim | 12/20 | 0/5 | 5e-1 |
+| system_one_leaf | 12/20 | 0/5 | 2.5e-4 |
 
 MoL wins close law whenever floors exist (LUT commit + satiation/VoI refuse). Frontier and System One leaf stubs still “decide” past `C(z)=1` and VoI=0 — correct on pure typed commits, wrong on economic done.
 

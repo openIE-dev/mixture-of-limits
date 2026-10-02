@@ -7,7 +7,7 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
-description = "Trait adapters: openie / wca / jouledb / efa / klere (software-reference stubs by default)"
+description = "Trait adapters: openie / wca / jouledb / efa / klere / Model LAST (stub + optional OpenAI-compatible endpoint)"
 readme = "../../README.md"
 
 [features]
@@ -27,3 +27,4 @@ mol-receipt = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 uuid = { workspace = true }
+ureq = { workspace = true }

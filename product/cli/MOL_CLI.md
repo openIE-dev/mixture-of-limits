@@ -70,8 +70,8 @@ Implementation lives beside `prove.rs` as `run.rs`: parse yaml → build `MolReq
 ```bash
 mol prove
 mol run --chore product/mol.yaml
-mol bench [--json] [--arena]
-mol arena [--json]
+mol bench [--json] [--arena] [--endpoint URL] [--profile …] [--model ID]
+mol arena [--json] [--endpoint URL] [--profile stub|laya|jev|decider] [--model ID]
 mol phase1 "please close ticket as R-OK"
 mol distill "residual text" --gear lookup --store product/fixtures/distill_store.json
 ```

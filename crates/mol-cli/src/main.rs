@@ -4,6 +4,7 @@ mod prove;
 mod run;
 mod bench;
 mod distill_cmd;
+mod model_last_leaf;
 
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -78,6 +79,15 @@ enum Commands {
         /// Formula still stamps Cpu; model residual stamps Gpu* or refuses.
         #[arg(long, default_value_t = false)]
         detect: bool,
+        /// Optional OpenAI-compatible Model LAST endpoint (with --allow-model).
+        #[arg(long)]
+        endpoint: Option<String>,
+        /// Model LAST profile: stub | laya | jev | decider.
+        #[arg(long, default_value = "stub")]
+        profile: String,
+        /// Model id for `--endpoint`.
+        #[arg(long)]
+        model: Option<String>,
     },
     /// Explain which cascade tiers would be tried and their surrogate joules.
     ExplainCascade {
@@ -158,12 +168,30 @@ enum Commands {
         /// Arena-shaped head-on: typed / ticket / risk — MoL vs frontier_sim vs system_one_leaf.
         #[arg(long, default_value_t = false)]
         arena: bool,
+        /// Optional OpenAI-compatible endpoint for arena `real_leaf` (Model LAST).
+        #[arg(long)]
+        endpoint: Option<String>,
+        /// Model LAST profile: stub | laya | jev | decider (docs+stub; endpoint uses label).
+        #[arg(long, default_value = "stub")]
+        profile: String,
+        /// Model id for `--endpoint` (default from profile).
+        #[arg(long)]
+        model: Option<String>,
     },
     /// Arena head-on chores (alias of `mol bench --arena`).
     Arena {
         /// Print JSON report.
         #[arg(long, default_value_t = false)]
         json: bool,
+        /// Optional OpenAI-compatible endpoint for `real_leaf` (Model LAST).
+        #[arg(long)]
+        endpoint: Option<String>,
+        /// Model LAST profile: stub | laya | jev | decider.
+        #[arg(long, default_value = "stub")]
+        profile: String,
+        /// Model id for `--endpoint`.
+        #[arg(long)]
+        model: Option<String>,
     },
     /// Primitive Distillation Loop v1: certified Model LAST → Lookup/Formula append.
     Distill {
@@ -245,6 +273,9 @@ fn main() -> ExitCode {
             meter_ms,
             meter_required,
             detect,
+            endpoint,
+            profile,
+            model,
         } => cmd_ask(
             query,
             max_j,
@@ -256,6 +287,9 @@ fn main() -> ExitCode {
             meter_ms,
             meter_required,
             detect,
+            endpoint,
+            profile,
+            model,
         ),
         Commands::ExplainCascade { query } => cmd_explain(query),
         Commands::Limits => cmd_limits(),
@@ -282,8 +316,24 @@ fn main() -> ExitCode {
         Commands::Memory => cmd_memory(),
         Commands::Fabric { detect, mock, json } => cmd_fabric(detect, mock, json),
         Commands::Meter { sample_ms } => cmd_meter(sample_ms),
-        Commands::Bench { json, arena } => bench::cmd_bench(json, arena),
-        Commands::Arena { json } => bench::cmd_arena(json),
+        Commands::Bench {
+            json,
+            arena,
+            endpoint,
+            profile,
+            model,
+        } => bench::cmd_bench(json, arena, endpoint, profile, model),
+        Commands::Arena {
+            json,
+            endpoint,
+            profile,
+            model,
+        } => bench::cmd_arena(bench::ArenaOpts {
+            json,
+            endpoint,
+            profile,
+            model,
+        }),
         Commands::Distill {
             proposal,
             gear,
@@ -401,8 +451,22 @@ fn cmd_ask(
     meter_ms: u64,
     meter_required: bool,
     detect: bool,
+    endpoint: Option<String>,
+    profile: String,
+    model: Option<String>,
 ) -> ExitCode {
     let mut mol = MixtureOfLimits::new();
+    if allow_model {
+        use mol_adapters::{model_last_from_endpoint, ModelLastProfile};
+        let profile = ModelLastProfile::parse(&profile);
+        let port = model_last_from_endpoint(endpoint.as_deref(), profile, model.as_deref());
+        mol = mol.with_model(Box::new(model_last_leaf::ModelLastLeaf::new(port)));
+        if let Some(ref ep) = endpoint {
+            println!("model LAST: openai-compatible endpoint={ep} profile={profile:?}");
+        } else {
+            println!("model LAST: offline stub profile={profile:?} (pass --endpoint for real inference)");
+        }
+    }
     if detect {
         let inv = inventory_for_schedule();
         println!(
