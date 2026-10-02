@@ -3370,6 +3370,73 @@ fn criterion_product_a14_arena() -> Criterion {
         return Criterion::fail(name, "board_synth must be false");
     }
 
+    // Formula closed-form risk (LUT miss → Formula).
+    let out = match mol.close(&MolRequest::new(
+        "risk score compute severity=1 exposure=0.2 likelihood=0.1",
+        Budget::coin_cell(),
+    )) {
+        Ok(o) => o,
+        Err(e) => return Criterion::fail(name, format!("risk formula: {e}")),
+    };
+    if !out.is_commit() {
+        return Criterion::fail(name, "closed-form risk must commit");
+    }
+    if out.receipt().cascade_answered != Some(CascadeTier::Formula) {
+        return Criterion::fail(
+            name,
+            format!("risk formula expected Formula, got {:?}", out.receipt().cascade_answered),
+        );
+    }
+    if out.receipt().measured_j.is_some() {
+        return Criterion::fail(name, "formula risk must not invent measured_j");
+    }
+
+    // Solver ticket route (LUT miss → Solver).
+    let out = match mol.close(&MolRequest::new(
+        "ticket route category=howto has_kb=true priority=normal",
+        Budget::coin_cell(),
+    )) {
+        Ok(o) => o,
+        Err(e) => return Criterion::fail(name, format!("ticket route: {e}")),
+    };
+    if !out.is_commit() {
+        return Criterion::fail(name, "ticket route rules must commit");
+    }
+    if out.receipt().cascade_answered != Some(CascadeTier::Solver) {
+        return Criterion::fail(
+            name,
+            format!("ticket route expected Solver, got {:?}", out.receipt().cascade_answered),
+        );
+    }
+    if !out
+        .receipt()
+        .answer
+        .as_deref()
+        .unwrap_or("")
+        .contains("R-HOWTO")
+    {
+        return Criterion::fail(name, "ticket route should resolve R-HOWTO");
+    }
+
+    // Solver tiny knapsack.
+    let out = match mol.close(&MolRequest::new(
+        "solve knapsack capacity=4 weights=[2,2,3] values=[5,4,3] labels=[route_howto,route_ok,route_refund]",
+        Budget::coin_cell(),
+    )) {
+        Ok(o) => o,
+        Err(e) => return Criterion::fail(name, format!("knapsack: {e}")),
+    };
+    if !out.is_commit() || out.receipt().cascade_answered != Some(CascadeTier::Solver) {
+        return Criterion::fail(
+            name,
+            format!(
+                "knapsack must commit at Solver; commit={} tier={:?}",
+                out.is_commit(),
+                out.receipt().cascade_answered
+            ),
+        );
+    }
+
     // Frontier / System One catalog surrogates are Estimated-only by construction in bench.rs.
     let frontier_est = 5.0e-1;
     let system_one_est = 2.5e-4;
@@ -3379,6 +3446,6 @@ fn criterion_product_a14_arena() -> Criterion {
 
     Criterion::verified(
         name,
-        "A14: arena head-on chores (typed/ticket/risk); MoL LUT + refuse_when_C=1; Estimated only; no invent",
+        "A14: arena head-on (LUT + Formula risk + Solver route/knapsack); refuse_when_C=1; Estimated only; no invent",
     )
 }

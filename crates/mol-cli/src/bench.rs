@@ -93,6 +93,8 @@ struct ArenaChore {
     expect: ExpectClose,
     /// Gold label / code for typed correctness (LUT code or option).
     gold: &'static str,
+    /// When Some, mol_cascade Commit must close at this tier label (lookup|formula|solver).
+    expect_tier: Option<&'static str>,
 }
 
 #[derive(Debug, Serialize)]
@@ -165,6 +167,7 @@ fn arena_chores() -> Vec<ArenaChore> {
             completeness: None,
             expect: ExpectClose::Commit,
             gold: "R-HOWTO",
+            expect_tier: None,
         },
         ArenaChore {
             id: "ticket_lut_ok",
@@ -173,6 +176,7 @@ fn arena_chores() -> Vec<ArenaChore> {
             completeness: None,
             expect: ExpectClose::Commit,
             gold: "R-OK",
+            expect_tier: None,
         },
         ArenaChore {
             id: "ticket_lut_dup",
@@ -181,6 +185,7 @@ fn arena_chores() -> Vec<ArenaChore> {
             completeness: None,
             expect: ExpectClose::Commit,
             gold: "R-DUP",
+            expect_tier: None,
         },
         ArenaChore {
             id: "ticket_lut_bugfix",
@@ -189,6 +194,7 @@ fn arena_chores() -> Vec<ArenaChore> {
             completeness: None,
             expect: ExpectClose::Commit,
             gold: "R-BUGFIX",
+            expect_tier: None,
         },
         ArenaChore {
             id: "ticket_lut_wontfix",
@@ -197,6 +203,7 @@ fn arena_chores() -> Vec<ArenaChore> {
             completeness: None,
             expect: ExpectClose::Commit,
             gold: "R-WONTFIX",
+            expect_tier: None,
         },
         ArenaChore {
             id: "ticket_lut_refund",
@@ -205,6 +212,7 @@ fn arena_chores() -> Vec<ArenaChore> {
             completeness: None,
             expect: ExpectClose::Commit,
             gold: "R-REFUND",
+            expect_tier: None,
         },
         // ── Risk LUT commits
         ArenaChore {
@@ -214,6 +222,7 @@ fn arena_chores() -> Vec<ArenaChore> {
             completeness: None,
             expect: ExpectClose::Commit,
             gold: "RISK-LOW",
+            expect_tier: None,
         },
         ArenaChore {
             id: "risk_lut_med",
@@ -222,6 +231,7 @@ fn arena_chores() -> Vec<ArenaChore> {
             completeness: None,
             expect: ExpectClose::Commit,
             gold: "RISK-MED",
+            expect_tier: None,
         },
         ArenaChore {
             id: "risk_lut_high",
@@ -230,6 +240,7 @@ fn arena_chores() -> Vec<ArenaChore> {
             completeness: None,
             expect: ExpectClose::Commit,
             gold: "RISK-HIGH",
+            expect_tier: None,
         },
         // ── Typed decision LUT commits
         ArenaChore {
@@ -239,6 +250,7 @@ fn arena_chores() -> Vec<ArenaChore> {
             completeness: None,
             expect: ExpectClose::Commit,
             gold: "D-APPROVE",
+            expect_tier: None,
         },
         ArenaChore {
             id: "typed_decide_deny",
@@ -247,6 +259,7 @@ fn arena_chores() -> Vec<ArenaChore> {
             completeness: None,
             expect: ExpectClose::Commit,
             gold: "D-DENY",
+            expect_tier: None,
         },
         ArenaChore {
             id: "typed_decide_escalate",
@@ -255,6 +268,72 @@ fn arena_chores() -> Vec<ArenaChore> {
             completeness: None,
             expect: ExpectClose::Commit,
             gold: "D-ESCALATE",
+            expect_tier: None,
+        },
+        // ── Formula: closed-form risk (LUT miss — no band=RISK-*)
+        ArenaChore {
+            id: "risk_formula_low",
+            kind: ArenaKind::Risk,
+            ask: "risk score compute severity=1 exposure=0.2 likelihood=0.1",
+            completeness: None,
+            expect: ExpectClose::Commit,
+            gold: "RISK-LOW",
+            expect_tier: Some("formula"),
+        },
+        ArenaChore {
+            id: "risk_formula_med",
+            kind: ArenaKind::Risk,
+            ask: "risk score compute severity=3 exposure=0.5 likelihood=0.5",
+            completeness: None,
+            expect: ExpectClose::Commit,
+            gold: "RISK-MED",
+            expect_tier: Some("formula"),
+        },
+        ArenaChore {
+            id: "risk_formula_high",
+            kind: ArenaKind::Risk,
+            ask: "risk score compute severity=5 exposure=0.9 likelihood=0.8",
+            completeness: None,
+            expect: ExpectClose::Commit,
+            gold: "RISK-HIGH",
+            expect_tier: Some("formula"),
+        },
+        // ── Solver: deterministic ticket routing + SAT assign + tiny knapsack
+        ArenaChore {
+            id: "ticket_route_howto",
+            kind: ArenaKind::TicketClose,
+            ask: "ticket route category=howto has_kb=true priority=normal",
+            completeness: None,
+            expect: ExpectClose::Commit,
+            gold: "R-HOWTO",
+            expect_tier: Some("solver"),
+        },
+        ArenaChore {
+            id: "ticket_route_refund",
+            kind: ArenaKind::TicketClose,
+            ask: "ticket route category=billing refund_eligible=true",
+            completeness: None,
+            expect: ExpectClose::Commit,
+            gold: "R-REFUND",
+            expect_tier: Some("solver"),
+        },
+        ArenaChore {
+            id: "ticket_sat_dup",
+            kind: ArenaKind::TicketClose,
+            ask: "ticket sat assign duplicate=true category=support",
+            completeness: None,
+            expect: ExpectClose::Commit,
+            gold: "R-DUP",
+            expect_tier: Some("solver"),
+        },
+        ArenaChore {
+            id: "ticket_knapsack_route",
+            kind: ArenaKind::TicketClose,
+            ask: "solve knapsack capacity=4 weights=[2,2,3] values=[5,4,3] labels=[route_howto,route_ok,route_refund]",
+            completeness: None,
+            expect: ExpectClose::Commit,
+            gold: "route_howto",
+            expect_tier: Some("solver"),
         },
         // ── Satiation C(z)=1 refuse (MoL wins refuse_when_C=1)
         ArenaChore {
@@ -264,6 +343,7 @@ fn arena_chores() -> Vec<ArenaChore> {
             completeness: Some(CompletenessSnapshot::ticket_close(true, true, true)),
             expect: ExpectClose::RefuseSatiation,
             gold: "R-OK",
+            expect_tier: None,
         },
         ArenaChore {
             id: "ticket_satiation_c1_howto",
@@ -272,6 +352,7 @@ fn arena_chores() -> Vec<ArenaChore> {
             completeness: Some(CompletenessSnapshot::ticket_close(true, true, true)),
             expect: ExpectClose::RefuseSatiation,
             gold: "R-HOWTO",
+            expect_tier: None,
         },
         ArenaChore {
             id: "risk_satiation_c1",
@@ -280,6 +361,7 @@ fn arena_chores() -> Vec<ArenaChore> {
             completeness: Some(CompletenessSnapshot::risk_score(true, true, true)),
             expect: ExpectClose::RefuseSatiation,
             gold: "RISK-MED",
+            expect_tier: None,
         },
         ArenaChore {
             id: "risk_satiation_c1_high",
@@ -288,6 +370,7 @@ fn arena_chores() -> Vec<ArenaChore> {
             completeness: Some(CompletenessSnapshot::risk_score(true, true, true)),
             expect: ExpectClose::RefuseSatiation,
             gold: "RISK-HIGH",
+            expect_tier: None,
         },
         ArenaChore {
             id: "typed_satiation_c1",
@@ -296,6 +379,7 @@ fn arena_chores() -> Vec<ArenaChore> {
             completeness: Some(CompletenessSnapshot::ticket_close(true, true, true)),
             expect: ExpectClose::RefuseSatiation,
             gold: "D-APPROVE",
+            expect_tier: None,
         },
         // ── VoI=0 refuse (free-form; MoL wins; peers still "decide")
         ArenaChore {
@@ -305,6 +389,7 @@ fn arena_chores() -> Vec<ArenaChore> {
             completeness: None,
             expect: ExpectClose::RefuseVoi,
             gold: "(refuse)",
+            expect_tier: None,
         },
         ArenaChore {
             id: "voi_freeform_essay",
@@ -313,6 +398,7 @@ fn arena_chores() -> Vec<ArenaChore> {
             completeness: None,
             expect: ExpectClose::RefuseVoi,
             gold: "(refuse)",
+            expect_tier: None,
         },
         ArenaChore {
             id: "voi_freeform_story",
@@ -321,6 +407,7 @@ fn arena_chores() -> Vec<ArenaChore> {
             completeness: None,
             expect: ExpectClose::RefuseVoi,
             gold: "(refuse)",
+            expect_tier: None,
         },
     ]
 }
@@ -430,9 +517,9 @@ pub fn cmd_arena(opts: ArenaOpts) -> ExitCode {
         println!("=== mol arena — Mixture of Limits head-on ===");
         println!("board_synth_claimed={}", report.board_synth_claimed);
         let strat_line = if want_real {
-            "chores: typed decision / ticket-close / risk  |  strategies: mol_cascade | frontier_sim | system_one_leaf | real_leaf\n"
+            "chores: typed/ticket/risk + Formula risk + Solver route  |  strategies: mol_cascade | frontier_sim | system_one_leaf | real_leaf\n"
         } else {
-            "chores: typed decision / ticket-close / risk  |  strategies: mol_cascade | frontier_sim | system_one_leaf  (pass --endpoint for real_leaf)\n"
+            "chores: typed/ticket/risk + Formula risk + Solver route  |  strategies: mol_cascade | frontier_sim | system_one_leaf  (pass --endpoint for real_leaf)\n"
         };
         print!("{strat_line}");
         for r in &report.rows {
@@ -835,8 +922,17 @@ fn arena_from_outcome(
     });
     let limit_id = r.limit_fired.as_ref().map(|f| f.id.as_str().to_string());
     let commit = o.is_commit();
+    let tier_label = r.cascade_answered.map(|t| t.label().to_string());
     let correct_close = match chore.expect {
-        ExpectClose::Commit => commit,
+        ExpectClose::Commit => {
+            let tier_ok = match chore.expect_tier {
+                Some(want) if strategy == "mol_cascade" => {
+                    tier_label.as_deref() == Some(want)
+                }
+                _ => true,
+            };
+            commit && tier_ok
+        }
         ExpectClose::RefuseSatiation => {
             !commit && limit_id.as_deref() == Some("satiation")
         }
@@ -854,7 +950,7 @@ fn arena_from_outcome(
         ask: chore.ask.into(),
         commit,
         limit_id,
-        tier: r.cascade_answered.map(|t| t.label().to_string()),
+        tier: tier_label,
         estimated_j: r.estimated_j.0,
         measured_j: measured,
         energy_label: label,

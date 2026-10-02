@@ -23,11 +23,11 @@ Frontier is expensive and out of road. Time is fair: floors close first; Model L
 
 | Strategy | correct_close | refuse_when_C=1 | mean `estimated_j` |
 |---|---|---|---|
-| **mol_cascade** | **20/20 (100%)** | **5/5 (100%)** | **~1.1e-16** |
-| frontier_sim | 12/20 (60%) | 0/5 (0%) | 5.0e-1 |
-| system_one_leaf | 12/20 (60%) | 0/5 (0%) | 2.5e-4 |
+| **mol_cascade** | **27/27 (100%)** | **5/5 (100%)** | **~2.7e-11** |
+| frontier_sim | 19/27 (70%) | 0/5 (0%) | 5.0e-1 |
+| system_one_leaf | 19/27 (70%) | 0/5 (0%) | 2.5e-4 |
 
-Joule ratios (Estimated): mol/frontier ≈ **2.2e-16**, mol/system_one ≈ **4.4e-13**. MoL wins when floors exist (LUT commit + satiation/VoI refuse). Frontier and System One leaf still commit on C=1 and VoI=0 — correct on pure typed commits, wrong on close law.
+Joule ratios (Estimated): mol/frontier ≈ **5.4e-11**, mol/system_one ≈ **1.1e-7**. MoL wins when floors exist (Lookup LUT + Formula risk + Solver route/knapsack + satiation/VoI refuse). Frontier and System One leaf still commit on C=1 and VoI=0 — correct on pure typed commits, wrong on close law. Estimates ≠ `measured_j`.
 
 Full chore table: [ARENA_RESULTS.md](./ARENA_RESULTS.md). Re-run for live numbers; do not paste invented board joules into this table. Optional `real_leaf` via `mol arena --endpoint`.
 

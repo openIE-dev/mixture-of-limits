@@ -138,7 +138,7 @@ Physics-informed acceptance. Soft-ref proves constructive existence; these tests
 |---|---|
 | Given | Arena chores: typed decision / ticket-close / risk |
 | When | `mol arena` (or `mol bench --arena`) |
-| Then | MoL cascade vs frontier_sim vs system_one_leaf (+ optional real_leaf via `--endpoint`); metrics correct_close, refuse_when_C=1, estimated_j (Estimated), latency; never invent `measured_j` |
+| Then | MoL cascade vs frontier_sim vs system_one_leaf (+ optional real_leaf via `--endpoint`); Lookup + **Formula** risk + **Solver** route/knapsack when LUT misses; metrics correct_close, refuse_when_C=1, estimated_j (Estimated), latency; never invent `measured_j` |
 
 ## Acceptance matrix
 

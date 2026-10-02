@@ -15,6 +15,7 @@ mod bloom;
 mod engine;
 mod grammar;
 mod lut_gear;
+mod route_solver;
 mod tiers;
 mod distill;
 mod residual;
@@ -23,6 +24,7 @@ pub use engine::{CascadeEngine, CascadeResult};
 pub use bloom::{BloomFilter, ResolutionLut};
 pub use grammar::{GrammarCoverage, TierAnswer};
 pub use lut_gear::{CompositeLookup, TicketResolutionLookup};
+pub use route_solver::TicketRouteSolver;
 pub use tiers::{
     ClaimCompose, ClaimRetrieve, FormulaTier, LinearSolver, LookupTable, ModelStub,
     StubModelEndpoint, TernarySettle, UnitLookup,

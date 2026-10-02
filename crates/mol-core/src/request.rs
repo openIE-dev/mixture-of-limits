@@ -170,12 +170,16 @@ impl QueryKind {
             || (q.contains("log2") && (q.contains("snr") || q.contains("bandwidth")))
             || ((q.contains("k_b") || q.contains("kbt") || q.contains("ln2") || q.contains("ln 2"))
                 && (q.contains("bit") || q.contains("landauer") || q.contains("joule")))
+            || q.contains("risk score compute")
+            || q.contains("closed-form risk")
+            || q.contains("risk formula")
         {
             Self::ClosedFormPhysics
         } else if q.contains("solve")
             || q.contains("linear system")
             || q.contains("2x2")
             || q.contains("matrix")
+            || q.contains("knapsack")
         {
             Self::LinearSolve
         } else if crate::claims::looks_compose_ask(query) {
@@ -185,6 +189,11 @@ impl QueryKind {
         } else if q.contains("resolution")
             || q.contains("ticket close")
             || q.contains("ticket_close")
+            || q.contains("ticket route")
+            || q.contains("ticket sat")
+            || q.contains("route rules")
+            || q.contains("sat route")
+            || q.contains("sat assign")
             || q.contains("resolve ticket")
             || q.starts_with("r-")
             || q.contains(" resolution=")

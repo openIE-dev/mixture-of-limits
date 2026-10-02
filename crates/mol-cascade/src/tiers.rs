@@ -190,7 +190,48 @@ impl FormulaTier {
                 "bit bound N log2 M = {n} · log2({m}) = {bits:.6} bits                  (finite-alphabet information bound; closed-form)"
             ));
         }
+        // Closed-form risk score (Formula) — LUT miss path: features in, band out.
+        // S = (severity/5)·exposure·likelihood; band thresholds on S.
+        if let Some(ans) = Self::risk_closed_form(&q) {
+            return Some(ans);
+        }
         None
+    }
+
+    /// Closed-form risk: severity∈[0,5], exposure∈[0,1], likelihood∈[0,1] → band.
+    ///
+    /// Fires when the ask is a compute/formula path (not `band=RISK-*` LUT).
+    fn risk_closed_form(q: &str) -> Option<String> {
+        let has_band_lut = q.contains("band=")
+            || q.contains("risk-low")
+            || q.contains("risk-med")
+            || q.contains("risk-high");
+        let wants = q.contains("risk score compute")
+            || q.contains("closed-form risk")
+            || q.contains("risk formula")
+            || (q.contains("risk")
+                && (q.contains("severity") || q.contains("exposure") || q.contains("likelihood"))
+                && !has_band_lut);
+        if !wants {
+            return None;
+        }
+        let severity = extract_param(q, "severity").unwrap_or(1.0).clamp(0.0, 5.0);
+        let exposure = extract_param(q, "exposure").unwrap_or(0.0).clamp(0.0, 1.0);
+        let likelihood = extract_param(q, "likelihood")
+            .or_else(|| extract_param(q, "probability"))
+            .unwrap_or(0.0)
+            .clamp(0.0, 1.0);
+        let score = (severity / 5.0) * exposure * likelihood;
+        let (band, label) = if score < 0.15 {
+            ("RISK-LOW", "LOW")
+        } else if score < 0.45 {
+            ("RISK-MED", "MED")
+        } else {
+            ("RISK-HIGH", "HIGH")
+        };
+        Some(format!(
+            "closed-form risk S=(severity/5)·exposure·likelihood = ({severity}/5)·{exposure}·{likelihood} = {score:.6} → band={band} ({label}); Formula gear; LUT miss; model never invoked; estimates≠measured_j"
+        ))
     }
 }
 
@@ -690,5 +731,25 @@ mod tests {
             ))
             .unwrap();
         assert!(a.text.contains("family=unit_convert"), "{}", a.text);
+    }
+
+    #[test]
+    fn risk_closed_form_low_and_high() {
+        let f = FormulaTier;
+        let low = f
+            .try_answer(&MolRequest::new(
+                "risk score compute severity=1 exposure=0.2 likelihood=0.1",
+                Budget::demo(),
+            ))
+            .unwrap();
+        assert!(low.text.contains("RISK-LOW"), "{}", low.text);
+        assert!(low.text.contains("Formula"), "{}", low.text);
+        let high = f
+            .try_answer(&MolRequest::new(
+                "risk score compute severity=5 exposure=0.9 likelihood=0.8",
+                Budget::demo(),
+            ))
+            .unwrap();
+        assert!(high.text.contains("RISK-HIGH"), "{}", high.text);
     }
 }

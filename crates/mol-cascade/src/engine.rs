@@ -14,14 +14,16 @@ use mol_receipt::{
 use crate::grammar::{GrammarCoverage, TierAnswer};
 use crate::lut_gear::CompositeLookup;
 use crate::residual::ResidualModelAdapter;
+use crate::route_solver::TicketRouteSolver;
 use crate::tiers::{
     ClaimCompose, ClaimRetrieve, FormulaTier, LinearSolver, ModelStub,
     TernarySettle,
 };
 
-/// Composite Solver gear: linear 2×2 then ternary settle.
+/// Composite Solver gear: ticket route / knapsack, linear 2×2, then ternary settle.
 #[derive(Debug, Default)]
 struct SolverGear {
+    route: TicketRouteSolver,
     linear: LinearSolver,
     settle: TernarySettle,
 }
@@ -32,11 +34,18 @@ impl GrammarCoverage for SolverGear {
     }
 
     fn covers(&self, req: &MolRequest) -> bool {
-        self.linear.covers(req) || self.settle.covers(req)
+        self.route.covers(req) || self.linear.covers(req) || self.settle.covers(req)
     }
 
     fn try_answer(&self, req: &MolRequest) -> Result<TierAnswer> {
-        // Prefer linear when it covers; else settle; else NotCovered.
+        // Prefer ticket-route / knapsack, then linear, then settle.
+        if self.route.covers(req) {
+            match self.route.try_answer(req) {
+                Ok(a) => return Ok(a),
+                Err(MolError::NotCovered(_)) => {}
+                Err(e) => return Err(e),
+            }
+        }
         if self.linear.covers(req) {
             match self.linear.try_answer(req) {
                 Ok(a) => return Ok(a),
