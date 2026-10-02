@@ -5,7 +5,9 @@
 //! MCP-shaped JSON-RPC (`MOL_NI_CERTIFY_URL` / `MOL_WCA_CERTIFY_URL`) with
 //! in-crate fallback — no sibling path-deps. Optional features `openie-path` /
 //! `wca-path` / `jouledb-path` / `efa-path` / `klere-path` remain reserved;
-//! Ferric / FPGA Stage C: soft-ref artifact inventory wired (`probe_stage_c`); meters stay stubs (`stage_c_measured=false`). Map: `BLUEPRINT.md` §path to MoL.
+//! Ferric / FPGA Stage C: soft-ref artifact inventory wired (`probe_stage_c` /
+//! `probe_ferric`); HW Gaps soft-ref sims (`probe_hw_gaps` / `run_hw_gap_soft`);
+//! meters stay stubs (`stage_c_measured=false`). Map: `BLUEPRINT.md` §path to MoL.
 
 #![deny(missing_docs)]
 
@@ -18,6 +20,8 @@ mod ni_live;
 mod ni_http;
 mod model_last;
 mod fpga_stage_c;
+mod ferric;
+mod hw_gaps;
 
 pub use efa::{
     live_efa_stub, EfaCertResult, EfaCertificatePort, EfaDecision, EfaProposal, StubEfaCertificate,
@@ -38,6 +42,14 @@ pub use ni_http::{
 pub use fpga_stage_c::{
     certify_stage_c_soft, live_stage_c_meter_stub, probe_stage_c, StageCCertResult, StageCInventory,
     ENV_OPENIE_FPGA_ROOT,
+};
+pub use ferric::{
+    certify_ferric_soft, live_ferric_meter_stub, probe_ferric, FerricCertResult, FerricInventory,
+    ENV_FERRIC_ROOT,
+};
+pub use hw_gaps::{
+    advance_all_hw_gaps_soft, probe_hw_gaps, run_hw_gap_soft, run_hw_gap_soft_named, HwGapId,
+    HwGapInventory, HwGapInventoryRow, HwGapSoftResult, HW_GAP_IDS,
 };
 pub use model_last::{
     live_model_last_stub, model_last_from_endpoint, ModelLastPort, ModelLastProfile,

@@ -160,7 +160,7 @@ Clearly marked; must **not** block `mol prove`:
 - klere-vm WASM / FPGA meter (real pJ/accumulate)
 - Live `openie-path` ask bridge / leapfrog runtime
 - Live WCA **in-proc** path-dep against `wca-lut-edge` (HTTP/MCP env certify **shipped**; FPGA Stage C meter still stub)
-- μ **calib corpus** + HW Gaps (in-tree **live catalog** 258 Present / 258 Lookup/Formula/Solver/Navigate gears + Gap probes + **tier μ catalog** `mu_source=catalog` are **in proof**; Stage C soft-ref inventory in proof with `stage_c_measured=false`)
+- μ **calib corpus** + **silicon** HW Gaps (in-tree **live catalog** 258 Present / 258 Lookup/Formula/Solver/Navigate gears + Gap probes + **tier μ catalog** `mu_source=catalog` are **in proof**; Stage C + Ferric soft-ref inventories + HW Gaps soft-ref sims ×8 in proof with `stage_c_measured=false`; Gap cells retained)
 - Trained weights / candle / tract model leaf (Model stays demoted stub)
 
 Adapters remain documented ports for these; the proven path never requires them.

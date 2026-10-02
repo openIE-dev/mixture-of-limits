@@ -1402,12 +1402,14 @@ fn cmd_ecosystem_certify(
 
 
 fn cmd_dev(json: bool) -> ExitCode {
-    use mol_adapters::{probe_stage_c, InCrateNiCertify};
+    use mol_adapters::{probe_ferric, probe_hw_gaps, probe_stage_c, InCrateNiCertify};
     use mol_core::{PeriodicStack, ENERGY_METER_ENABLED, FABRIC_DETECT_ENABLED};
     use serde_json::json;
 
     let stack = PeriodicStack::subset();
     let stage = probe_stage_c();
+    let ferric = probe_ferric();
+    let hw = probe_hw_gaps();
     let ni = InCrateNiCertify::new();
     let ni_ok = ni
         .certify_live("mol-dev-status", 1e-9, None, None)
@@ -1435,12 +1437,27 @@ fn cmd_dev(json: bool) -> ExitCode {
             "stage_c_measured": stage.stage_c_measured,
             "board_synth_claimed": stage.board_synth_claimed
         },
+        "ferric": {
+            "artifacts_present": ferric.artifacts_present,
+            "artifact_count": ferric.artifacts.len(),
+            "root": ferric.root,
+            "soft_ref_efa": ferric.soft_ref_efa,
+            "stage_c_measured": ferric.stage_c_measured,
+            "board_synth_claimed": ferric.board_synth_claimed
+        },
+        "hw_gaps_soft": {
+            "soft_ref_count": hw.soft_ref_count,
+            "gap_ids": hw.gaps.iter().map(|g| g.gap_id.clone()).collect::<Vec<_>>(),
+            "stage_c_measured": hw.stage_c_measured,
+            "board_synth_claimed": hw.board_synth_claimed,
+            "silicon_claimed": false
+        },
         "features": {
             "energy_meter": ENERGY_METER_ENABLED,
             "fabric_detect": FABRIC_DETECT_ENABLED
         },
         "ni_in_crate": ni_ok,
-        "note": "mol dev: status only (watch UI polish residual); estimates≠measured_j; PUBLISH soft-ref ready when prove+arena green"
+        "note": "mol dev: status only (watch UI polish residual); estimates≠measured_j; HW Gaps soft-ref sims in proof; Gap cells retained; PUBLISH soft-ref ready when prove+arena green"
     });
     if json {
         println!("{}", serde_json::to_string_pretty(&publish).unwrap_or_default());
@@ -1465,6 +1482,17 @@ fn cmd_dev(json: bool) -> ExitCode {
         if let Some(root) = &stage.root {
             println!("Stage C root: {root}");
         }
+        println!(
+            "Ferric soft-ref: artifacts_present={} soft_ref_efa={} measured={}",
+            ferric.artifacts_present, ferric.soft_ref_efa, ferric.stage_c_measured
+        );
+        if let Some(root) = &ferric.root {
+            println!("Ferric root: {root}");
+        }
+        println!(
+            "HW Gaps soft-ref: sims={} silicon_claimed=false stage_c_measured={}",
+            hw.soft_ref_count, hw.stage_c_measured
+        );
         println!("NI in-crate cert: {ni_ok}");
         println!("energy-meter feature: {ENERGY_METER_ENABLED}; fabric-detect: {FABRIC_DETECT_ENABLED}");
         println!("PUBLISH readiness (soft-ref): prove+arena green; board_synth_claimed=false; stage_c_measured=false");

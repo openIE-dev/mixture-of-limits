@@ -60,7 +60,7 @@ cargo test -p mol-desktop
 cargo run -p mol-desktop --features gui --bin mol-desktop
 ```
 
-Honesty: receipts print `estimated_j` and `measured_j=None` unless a real meter ran (`energy-meter`). **No fake RAPL/NVML.** `board_synth_claimed=false`. Ferric / FPGA Stage C: soft-ref artifact inventory wired; certify meters remain stubs (`stage_c_measured=false`).
+Honesty: receipts print `estimated_j` and `measured_j=None` unless a real meter ran (`energy-meter`). **No fake RAPL/NVML.** `board_synth_claimed=false`. Ferric / FPGA Stage C: soft-ref artifact inventory wired; HW Gaps soft-ref sims ×8 (`physical_settle`…`photonic_mzi`; Gap cells retained); certify meters remain stubs (`stage_c_measured=false`).
 
 Agent Lane session path (partitions + host invoke grant receipts): [`docs/agent-lane-session.md`](./docs/agent-lane-session.md). WASM capsule: [`docs/wasm-capsule.md`](./docs/wasm-capsule.md). Ecosystem e2e certify: [`docs/ecosystem-e2e-certify.md`](./docs/ecosystem-e2e-certify.md). Live NI/WCA HTTP|MCP certify: [`docs/live-ni-wca-certify.md`](./docs/live-ni-wca-certify.md). Multi-fabric compute: [`docs/multi-fabric-compute.md`](./docs/multi-fabric-compute.md).
 
@@ -115,7 +115,7 @@ Live silicon / RAPL / Ferric EFA hardware / klere-vm FPGA / openie-path / WCA MC
 
 ## Gaps still stub
 
-Live `openie-path` ask, WCA MCP, Ferric/on-device EFA certificate, klere-vm/FPGA meter, μ calib corpus + HW Gaps. Default build ships full soft-ref live catalog (258 Present / 258 live gears; honest Gaps; counts in `scale_note` / `mol prove`).
+Live `openie-path` ask, WCA MCP, Ferric/on-device EFA **meters**, klere-vm/FPGA **package** meters, μ calib corpus + **silicon** HW. Soft-ref: Ferric inventory + Stage C inventory + HW Gaps sims ×8 are in proof (`stage_c_measured=false`). Default build ships full soft-ref live catalog (258 Present / 258 live gears; honest Gaps retained; counts in `scale_note` / `mol prove`).
 
 ---
 

@@ -190,6 +190,8 @@ pub fn run_prove() -> bool {
     results.push(criterion_product_a8_residual_model_last());
     results.push(criterion_product_a8b_model_last_endpoint());
     results.push(criterion_product_stage_c_fpga());
+    results.push(criterion_product_ferric_soft());
+    results.push(criterion_product_hw_gaps_soft());
     results.push(criterion_product_a9_episode_cz());
     results.push(criterion_product_a10_bench_labels());
     results.push(criterion_product_a11_phase1());
@@ -213,8 +215,8 @@ pub fn run_prove() -> bool {
         let failed = results.iter().filter(|c| !c.ok).count();
         println!("PROVE RESULT: FAILED ({failed}/{})", results.len());
     }
-    println!("OUT OF PROOF SCOPE: Ferric/MuJoCo robot EFA hardware, FPGA Stage C / wca-lut-edge in-proc + board meters (stage_c_measured=false), klere-vm package meters, System One pre-gate, μ calib corpus + HW Gaps (physical_settle/reversible/ising/adiabatic/ferric/quantum/analog/photonic; live catalog 258 Present in proof; honest Gaps retained), live nvidia-smi on hosts without NVIDIA (feature energy-meter still honest-unavailable). Live NI/WCA HTTP|MCP certify is in-tree (env-gated; in-crate fallback).");
-    println!("IN PROOF (product gaps): live NI cert ids (in-crate + HTTP|MCP prefer_env fallback), Residual Model LAST (+ optional endpoint fail-closed), Stage C soft-ref inventory (stage_c_measured=false), durable EpisodeStore C(z), mol bench Estimated|Metered, mol arena head-on, phase1 rule AST, distill v1, Tier-1 RAPL/NVML/macOS-SMC meter honesty + Tier-2 StubShuntHal");
+    println!("OUT OF PROOF SCOPE: Ferric/MuJoCo robot EFA hardware meters, FPGA Stage C / wca-lut-edge in-proc + board meters (stage_c_measured=false), klere-vm package meters, System One pre-gate, μ calib corpus + silicon HW (Gap cells retained; soft-ref sims in proof), live nvidia-smi on hosts without NVIDIA (feature energy-meter still honest-unavailable). Live NI/WCA HTTP|MCP certify is in-tree (env-gated; in-crate fallback).");
+    println!("IN PROOF (product gaps): live NI cert ids (in-crate + HTTP|MCP prefer_env fallback), Residual Model LAST (+ optional endpoint fail-closed), Stage C soft-ref inventory (stage_c_measured=false), Ferric soft-ref inventory (no path-dep), HW Gaps soft-ref sims ×8 (physical_settle…photonic_mzi; Gap cells retained; measured_j=None), durable EpisodeStore C(z), mol bench Estimated|Metered, mol arena head-on, phase1 rule AST, distill v1, Tier-1 RAPL/NVML/macOS-SMC meter honesty + Tier-2 StubShuntHal");
     all_ok
 }
 
@@ -3370,6 +3372,106 @@ fn criterion_product_stage_c_fpga() -> Criterion {
             "Stage C soft-ref: artifacts_present={}; stage_c_measured=false; board_synth_claimed=false; live meter stub",
             inv.artifacts_present
         ),
+    )
+}
+
+fn criterion_product_ferric_soft() -> Criterion {
+    let name = "product_ferric_soft_ref";
+    use mol_adapters::{certify_ferric_soft, live_ferric_meter_stub, probe_ferric};
+    let inv = probe_ferric();
+    if inv.stage_c_measured || inv.board_synth_claimed {
+        return Criterion::fail(name, "ferric probe must keep measured/board_synth false");
+    }
+    if !inv.soft_ref_efa {
+        return Criterion::fail(name, "soft-ref EFA must remain available");
+    }
+    let cert = certify_ferric_soft("ferric soft-ref fabric inventory");
+    if cert.stage_c_measured || cert.board_synth_claimed {
+        return Criterion::fail(name, "ferric certify must keep flags false");
+    }
+    let refuse = certify_ferric_soft("stage_c_measured=true board meter claim");
+    if refuse.decision != "refuse" {
+        return Criterion::fail(name, "fake Ferric board meter claim must refuse");
+    }
+    let diverge = certify_ferric_soft("diverge uncertified");
+    if diverge.decision != "refuse" {
+        return Criterion::fail(name, "diverge must refuse on Ferric soft-ref EFA");
+    }
+    if live_ferric_meter_stub().is_ok() {
+        return Criterion::fail(name, "live ferric meter stub must stay AdapterStub");
+    }
+    Criterion::verified(
+        name,
+        format!(
+            "Ferric soft-ref: artifacts_present={}; soft_ref_efa=true; stage_c_measured=false; no path-dep; live meter stub",
+            inv.artifacts_present
+        ),
+    )
+}
+
+fn criterion_product_hw_gaps_soft() -> Criterion {
+    let name = "product_hw_gaps_soft_ref";
+    use mol_adapters::{
+        advance_all_hw_gaps_soft, probe_hw_gaps, run_hw_gap_soft, HwGapId, HW_GAP_IDS,
+    };
+    use mol_core::{CellStatus, PeriodicStack};
+
+    let inv = probe_hw_gaps();
+    if inv.soft_ref_count != 8 {
+        return Criterion::fail(name, format!("expected 8 soft-ref sims, got {}", inv.soft_ref_count));
+    }
+    if inv.stage_c_measured || inv.board_synth_claimed {
+        return Criterion::fail(name, "hw_gaps inventory must keep measured/board_synth false");
+    }
+
+    let stack = PeriodicStack::subset();
+    for id in HW_GAP_IDS {
+        match stack.get_by_name(id) {
+            Some(c) if c.status == CellStatus::Gap => {}
+            Some(c) => {
+                return Criterion::fail(
+                    name,
+                    format!("{id} must remain Gap (got {:?}); soft-ref ≠ Present silicon", c.status),
+                )
+            }
+            None => return Criterion::fail(name, format!("{id} missing from Periodic Stack")),
+        }
+    }
+
+    let results = advance_all_hw_gaps_soft();
+    if results.len() != 8 {
+        return Criterion::fail(name, format!("advance_all returned {}", results.len()));
+    }
+    for r in &results {
+        if r.measured_j.is_some() || r.stage_c_measured || r.board_synth_claimed || r.silicon_claimed
+        {
+            return Criterion::fail(
+                name,
+                format!(
+                    "{} must keep measured_j=None stage_c_measured=false silicon_claimed=false",
+                    r.gap_id
+                ),
+            );
+        }
+        if r.decision == "refuse" {
+            return Criterion::fail(name, format!("default soft-ref advance refused {}", r.gap_id));
+        }
+    }
+
+    let fake = run_hw_gap_soft(HwGapId::PhotonicMzi, "stage_c_measured=true board meter claim");
+    if fake.decision != "refuse" || fake.measured_j.is_some() || fake.stage_c_measured {
+        return Criterion::fail(name, "fake meter claim on HW Gap soft-ref must refuse honestly");
+    }
+
+    // Silicon Gap probe still fires primitive_gap (soft-ref sims do not promote Present).
+    let probe = stack.probe_name("physical_settle");
+    if !probe.is_gap() {
+        return Criterion::fail(name, "physical_settle must still probe as Gap after soft-ref advance");
+    }
+
+    Criterion::verified(
+        name,
+        "HW Gaps soft-ref ×8 (physical_settle…photonic_mzi): sims wired; Gap cells retained; measured_j=None; stage_c_measured=false",
     )
 }
 
