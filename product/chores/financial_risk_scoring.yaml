@@ -1,0 +1,82 @@
+# Secondary chore — financial risk scoring (Mixture of Limits product)
+# Same surface as support-desk; not a live trading claim.
+# estimates ≠ measured_j; board_synth_claimed=false.
+
+version: "0.1"
+product: mixture-of-limits
+chore:
+  id: financial_risk_scoring.sketch
+  title: Financial risk scoring — typed features → score or refuse
+  ask: "risk score band=RISK-MED"
+  scenario: default
+  completeness:
+    id: C_risk_score
+    clauses:
+      - required_features_present: true
+      - score_within_policy_bounds: true
+      - certificate_for_publish: true
+
+limits:
+  - id: grammar
+    kind: grammar
+  - id: voi
+    kind: voi
+    zero_means: refuse
+  - id: energy
+    kind: energy
+    max_estimated_j: 5.0e-4
+  - id: ni_certificate
+    kind: efa_certificate
+    required_for_commit: true
+  - id: satiation
+    kind: completeness
+    predicate: C_risk_score
+    on_true: refuse_further_synthesis
+
+pipeline:
+  - tier: lookup
+    when: grammar_hit
+    action: score_table_lookup
+    model: never
+    lut: risk_band   # RISK-LOW | RISK-MED | RISK-HIGH (O(1) Bloom+HashMap)
+  - tier: formula
+    when: schema_covered
+    action: risk_formula
+    model: never
+  - tier: solver
+    when: settle_ready
+    action: policy_settle
+    model: never
+  - tier: model_fallback
+    when: voi_positive_and_allow_model
+    action: residual_propose
+    replay_class: ModelGenerated
+    commit_requires: ni_certificate
+
+cascade:
+  allow_model: false
+  floors: [grammar, voi, energy, ni_certificate, satiation]
+
+on_refuse:
+  voi_zero: receipt_limit_voi
+  completeness_true: receipt_limit_satiation
+  certificate_fail: receipt_limit_ni_certificate
+
+measurement:
+  tier: 0
+  estimated_j: always
+  measured_j: only_when_meter_present
+  board_synth_claimed: false
+  mu_source: catalog
+
+golden:
+  a1: { scenario: a1, expect: commit_lookup }
+  a2: { scenario: a2, expect: refuse_voi }
+  a3: { scenario: a3, expect: refuse_satiation }
+  a4: { scenario: a4, expect: refuse_ni_certificate }
+  a5: { scenario: a5, expect: estimated_j_present }
+  a6: { scenario: a6, expect: measured_j_none }
+
+refs:
+  competitive: "../COMPETITIVE.md"
+  acceptance: "../ACCEPTANCE.md"

@@ -1,0 +1,36 @@
+# Golden fixture A4 — Mixture of Limits product acceptance
+# Run: cargo run -p mol-cli -- run --chore product/mol.yaml
+# Prove: cargo run -p mol-cli -- prove  (embeds A1–A6)
+version: "0.1"
+product: mixture-of-limits
+chore:
+  id: support_desk.ticket_close
+  title: Golden A4
+  scenario: a4
+  ask: "ticket close resolution=R-OK"
+  completeness:
+    id: C_ticket_close
+    clauses:
+      - resolution_code_set: true
+      - customer_ack_or_sla_elapsed: true
+      - no_open_blocker: true
+limits:
+  - id: grammar
+    kind: grammar
+  - id: voi
+    kind: voi
+  - id: energy
+    kind: energy
+    max_estimated_j: 1.0e-3
+  - id: ni_certificate
+    kind: efa_certificate
+  - id: satiation
+    kind: completeness
+cascade:
+  allow_model: false
+measurement:
+  tier: 0
+  estimated_j: always
+  measured_j: only_when_meter_present
+  board_synth_claimed: false
+# expect: ModelGenerated NI cert refuse

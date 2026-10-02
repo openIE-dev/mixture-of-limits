@@ -1,0 +1,16 @@
+Mac live (2026-09-30 14:13 EDT) — Metal kernel + overlapping SMC meter_required
+
+command:
+  cargo run -p mol-cli --features fabric-detect,energy-meter -- \
+    ecosystem-certify --detect --tier model --meter-required --meter-ms 200
+
+adapter: Apple M5 Max backend=metal → gpu_metal
+decision: COMMIT
+fabric_chosen: gpu_metal
+receipt_meter: measured_j=1.616552e1 J source=smc energy_honesty=measured
+components: package(smc)=16.165518 J; cpu/gpu/ane/dram via ioreport (not summed into package)
+kernel_step: label=kernel:vector_add fabric_id=gpu_metal
+  proof: checksum=0x989b3f5904521011;n=64;sample=[0,3,6,9,12,15,18,21];mode=live:metal;live=true
+  measured_j=1.616552e1 source=smc honesty=measured
+capsule_return: 42  grant stamped
+prove soft-ref: ALL VERIFIED (29) offline (fixture SMC path for kernel meter stamp)

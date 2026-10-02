@@ -1,0 +1,19 @@
+[package]
+name = "mol-automate"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Capability-gated Act + AgentMailbox + EcosystemCertify (Agent Lane + fabric + WASM → one receipt)"
+readme = "../../README.md"
+
+[dependencies]
+mol-core = { workspace = true }
+mol-limits = { workspace = true }
+mol-receipt = { workspace = true }
+mol-adapters = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }

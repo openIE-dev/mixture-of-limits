@@ -1,0 +1,5 @@
+# Mixture of Limits — pin matches openie-leapfrog substrate.
+# Channel 1.98.1 is installable on this box; active rustc may be 1.98.0.
+# clippy/rustfmt: install via `rustup component add` when available; not required for prove.
+[toolchain]
+channel = "1.98.1"

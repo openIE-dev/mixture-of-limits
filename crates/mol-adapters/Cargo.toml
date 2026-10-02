@@ -1,0 +1,28 @@
+[package]
+name = "mol-adapters"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Trait adapters: openie / wca / jouledb / efa / klere (software-reference stubs by default)"
+readme = "../../README.md"
+
+[features]
+default = []
+# Document-only / compile-light stubs remain default. Enabling these features
+# currently still uses stubs; real path-deps are deferred (see BLUEPRINT.md)
+# so the workspace builds standalone without compiling sibling trees.
+openie-path = []
+wca-path = []
+jouledb-path = []
+efa-path = []
+klere-path = []
+
+[dependencies]
+mol-core = { workspace = true }
+mol-receipt = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }

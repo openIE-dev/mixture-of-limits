@@ -1,0 +1,42 @@
+[package]
+name = "mol-desktop"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "MoL energy harness desktop shell — ask/close, fabric inventory, receipts, joule ledger (egui optional)"
+readme = "../../README.md"
+
+[features]
+default = []
+# Optional native window (egui/eframe). Default build is headless shell API for prove/CI.
+gui = ["dep:eframe", "dep:egui"]
+# Optional OS energy meter (pass-through to mol-core) for live ShellSession / EcosystemCertify.
+energy-meter = ["mol-core/energy-meter"]
+os-meter = ["energy-meter"]
+# Optional live wgpu fabric detect + tiny kernel (pass-through to mol-core). Soft-ref prove stays offline.
+fabric-detect = ["mol-core/fabric-detect"]
+wgpu-kernel = ["fabric-detect", "mol-core/wgpu-kernel"]
+
+[dependencies]
+mol-core = { workspace = true }
+mol-limits = { workspace = true }
+mol-receipt = { workspace = true }
+mol-automate = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+eframe = { version = "0.31", optional = true, default-features = true }
+egui = { version = "0.31", optional = true }
+
+[[bin]]
+name = "mol-desktop"
+path = "src/bin/mol-desktop.rs"
+required-features = ["gui"]
+
+[dev-dependencies]
+mol-core = { workspace = true }

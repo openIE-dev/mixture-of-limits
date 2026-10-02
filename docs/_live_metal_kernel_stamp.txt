@@ -1,0 +1,9 @@
+Mac live (2026-09-30 ET) — cargo run -p mol-cli --features fabric-detect -- ecosystem-certify --detect --tier model
+
+adapter: Apple M5 Max backend=metal → gpu_metal
+decision: COMMIT
+fabric_chosen: gpu_metal
+kernel_step: label=kernel:vector_add fabric_id=gpu_metal
+proof: checksum=0x989b3f5904521011;n=64;sample=[0,3,6,9,12,15,18,21];mode=live:metal;live=true
+measured_j: None (honesty=estimated)
+prove: ALL VERIFIED (29) with fabric-detect (ecosystem_wgpu_kernel wgpu_kernel=true)

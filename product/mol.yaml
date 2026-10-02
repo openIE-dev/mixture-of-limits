@@ -1,0 +1,112 @@
+# Mixture of Limits — declarative chore (MVP product surface)
+# Soft-ref / operator schema. Not a claim of live board package energy.
+# estimates ≠ measured_j; board_synth_claimed stays false unless a Metered path is claimed.
+
+version: "0.1"
+product: mixture-of-limits
+chore:
+  id: support_desk.ticket_close
+  title: Support desk — close ticket when completeness holds
+  description: >
+    Close a support ticket when written completeness C(z) holds.
+    Grammar/LUT hits commit without a model. VoI=0 or C=1 refuses further synthesis.
+  # Default ask for mol run (O(1) Bloom/HashMap LUT — A1)
+  ask: "ticket close resolution=R-HOWTO"
+  scenario: default
+
+  # Completeness predicate C(z) — economic satiation stop (companion: Satiation study)
+  completeness:
+    id: C_ticket_close
+    clauses:
+      - resolution_code_set: true          # ticket has a typed resolution code
+      - customer_ack_or_sla_elapsed: true  # ack recorded OR SLA window closed
+      - no_open_blocker: true              # no open blocker tagged on thread
+    # C(z)=1 when all clauses true → satiation stop (refuse further model spend)
+
+limits:
+  - id: grammar
+    kind: grammar
+    bind: first_hit
+  - id: voi
+    kind: voi
+    # VoI=0 past floor → refuse (no model)
+    zero_means: refuse
+  - id: energy
+    kind: energy
+    max_estimated_j: 1.0e-3
+  - id: ni_certificate
+    kind: efa_certificate   # NI / WCA certify-before-commit
+    required_for_commit: true
+  - id: satiation
+    kind: completeness
+    predicate: C_ticket_close
+    on_true: refuse_further_synthesis
+
+pipeline:
+  # Lookup → Formula → Solver → Model LAST
+  - tier: lookup
+    when: grammar_hit
+    action: resolve_from_lut
+    model: never
+    lut: support_desk_resolution   # O(1) Bloom + HashMap (R-OK, R-DUP, R-HOWTO, …)
+  - tier: formula
+    when: schema_covered
+    action: apply_formula
+    model: never
+  - tier: solver
+    when: settle_ready
+    action: ternary_or_policy_settle
+    model: never
+  - tier: model_fallback
+    when: voi_positive_and_allow_model
+    action: residual_propose
+    replay_class: ModelGenerated
+    # ModelGenerated never commits without NI cert
+    commit_requires: ni_certificate
+
+cascade:
+  allow_model: false          # MVP default: model cold; enable only under budget + VoI>0
+  floors: [grammar, voi, energy, ni_certificate, satiation]
+
+phase1:
+  enabled: false              # MVP: typed ticket AST assumed; enable for unstructured email/voice
+  transducer: null            # v2: TinyML / bounded micro-perception → typed AST
+
+on_refuse:
+  grammar_miss: receipt_limit_grammar
+  voi_zero: receipt_limit_voi
+  energy_exceeded: receipt_limit_energy
+  certificate_fail: receipt_limit_ni_certificate
+  completeness_true: receipt_limit_satiation   # C(z)=1 → stop
+  primitive_gap: receipt_limit_primitive_gap
+
+measurement:
+  tier: 0                     # 0 analytical | 1 os_telemetry | 2 shunt
+  estimated_j: always         # every receipt
+  measured_j: only_when_meter_present
+  board_synth_claimed: false
+  mu_source: catalog
+
+receipt:
+  require:
+    - estimated_j
+    - estimate_kind
+    - limit_id_on_refuse
+    - replay_class
+  forbid:
+    - invent_measured_j
+    - promote_ModelGenerated_to_Deterministic
+
+golden:
+  a1: { scenario: a1, expect: commit_lookup }
+  a2: { scenario: a2, expect: refuse_voi }
+  a3: { scenario: a3, expect: refuse_satiation }
+  a4: { scenario: a4, expect: refuse_ni_certificate }
+  a5: { scenario: a5, expect: estimated_j_present }
+  a6: { scenario: a6, expect: measured_j_none }
+
+refs:
+  clean_room: "/Users/dcharlot/Desktop/mol-sync/mixture-of-limits"
+  research_paper: "https://research.openie.dev/papers/mol/"
+  competitive: "./COMPETITIVE.md"
+  laya_system_one: "https://laya-ai.com/system-one-models"

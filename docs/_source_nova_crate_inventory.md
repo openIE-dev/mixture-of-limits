@@ -1,0 +1,35 @@
+# Nova crates
+
+- `hyperdb` (`crates/hyperdb`) — Hybrid graph + vector database engine — HNSW ANN, property graph, hybrid query pipeline, SIMD distance kernels, zero dependencies on external services
+- `nova_aac` (`crates/nova_aac`) — Nova AAC subsystem — Augmentative & Alternative Communication boards, scanning, and accessibility profiles
+- `nova_ai` (`crates/nova_ai`) — AI-native browser engine: Nemotron inference, agents, skills, RAG search, voice, MCP, and more
+- `nova_app_calc` (`crates/nova_app_calc`) — Calculator — a second Nova App, demonstrating multi-app in the SDK runtime
+- `nova_app_notepad` (`crates/nova_app_notepad`) — Notepad — the first Nova App, proving the SDK contract end-to-end (AppStorage + PhotonNovaApp)
+- `nova_appbundle` (`crates/nova_appbundle`) — Nova app-bundle tooling — rasterise the icon SVG at every size iconutil needs, using Nova's own SVG rasteriser
+- `nova_apps` (`crates/nova_apps`) — Nova Apps runtime — manifest format, permission model, durable install store, and URL/origin helpers for JS/HTML Nova Apps
+- `nova_browser` (`crates/nova_browser`) — Nova Browser — the main binary tying all subsystems together
+- `nova_charts` (`crates/nova_charts`) — Nova Charts — built-in data visualisation library on top of Photon
+- `nova_compute` (`crates/nova_compute`) — Heterogeneous compute scheduler: CPU, GPU, NPU dispatch and WebNN implementation
+- `nova_content` (`crates/nova_content`)
+- `nova_core` (`crates/nova_core`) — HTML/CSS parsing, DOM tree, layout engine, and style resolution
+- `nova_crypto` (`crates/nova_crypto`) — Native, zero-dependency cryptographic primitives (SHA-256, HMAC-SHA-256, AES, AES-GCM, ChaCha20-Poly1305) — the nova_calc lightweight-engine pattern
+- `nova_db` (`crates/nova_db`) — Browser-flavored façade over hyperdb — history, bookmarks, and everything-app schema on top of the shared graph+vector engine
+- `nova_devtools` (`crates/nova_devtools`) — Chrome DevTools Protocol server for Nova Browser
+- `nova_gpu` (`crates/nova_gpu`) — WebGPU-accelerated compositor, text rasterization, and render pipeline
+- `nova_icons` (`crates/nova_icons`) — Nova Icons — built-in icon library; named, weight-variant, color-customisable; renders through Photon Canvas leaves
+- `nova_js` (`crates/nova_js`) — JavaScript engine integration with V8 (default) or Boa (portable/RISC-V) backends
+- `nova_jwp` (`crates/nova_jwp`) — Nova JWP (Just Web Protocol) — native peer-to-peer wire protocol for Nova
+- `nova_lux_lang` (`crates/nova_lux_lang`) — Nova's port of the Lux language front-end (lexer + parser + AST + checker)
+- `nova_motion` (`crates/nova_motion`)
+- `nova_net` (`crates/nova_net`) — HTTP/1.1, HTTP/2, HTTP/3 (QUIC) networking with TLS and resource loading
+- `nova_nwp` (`crates/nova_nwp`) — Nova Wire Protocol (NWP) — energy-aware binary framing for Nova peer-to-peer communication
+- `nova_peer` (`crates/nova_peer`) — Nova peer-to-peer app runtime — wraps NWP for hosting and remoting Nova Apps
+- `nova_preview_handler` (`crates/nova_preview_handler`) — Windows Shell IPreviewHandler DLL — renders SVG (and later HTML) into Explorer's preview pane
+- `nova_privacy` (`crates/nova_privacy`) — Privacy engine: tracker/ad blocking, fingerprint protection, cookie isolation
+- `nova_psl` (`crates/nova_psl`) — Native, zero-dependency Public Suffix List engine (registrable domain / eTLD+1) — the nova_calc lightweight-engine pattern
+- `nova_sdk` (`crates/nova_sdk`) — Nova App SDK — leaf crate exposing Nova App primitives (AppView, AppDisplayCommand, runtime trait)
+- `nova_shell` (`crates/nova_shell`) — Browser shell: window management, tab UI, omnibar, and chrome rendered via wgpu
+- `nova_view` (`crates/nova_view`) — Native reactive component layer for Nova Apps — Topcoat's authoring model on Nova's own runtime, no JS/transpile (see docs/dev/nova-view-design.md)
+- `nova_wal_ship` (`crates/nova_wal_ship`) — WAL replication shippers for hyperdb — network transports (JWP peer, …) implementing hyperdb::replication::WalSink
+- `nova_wpt` (`crates/nova_wpt`) — Web Platform Tests runner for Nova Browser
+- `photon` (`crates/photon`) — Photon — Nova's declarative GPU UI framework (widgets, layout, render context)

@@ -1,0 +1,54 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/mol-core",
+    "crates/mol-receipt",
+    "crates/mol-cascade",
+    "crates/mol-limits",
+    "crates/mol-automate",
+    "crates/mol-adapters",
+    "crates/mol-cli",
+    "crates/mol-desktop",
+]
+default-members = [
+    "crates/mol-core",
+    "crates/mol-receipt",
+    "crates/mol-cascade",
+    "crates/mol-limits",
+    "crates/mol-automate",
+    "crates/mol-adapters",
+    "crates/mol-cli",
+    "crates/mol-desktop",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.98"
+license = "Apache-2.0 OR MIT"
+authors = ["David Charlot <OpenIE>"]
+repository = "https://github.com/openIE-dev/mixture-of-limits"
+homepage = "https://compute.openie.dev/"
+description = "Mixture of Limits — universal law of computer intelligence (floors where more bits stop buying outcomes)"
+keywords = ["openie", "mixture-of-limits", "landauer", "cascade", "joules"]
+categories = ["science", "command-line-utilities"]
+
+[workspace.dependencies]
+mol-core = { path = "crates/mol-core", version = "0.1.0" }
+mol-receipt = { path = "crates/mol-receipt", version = "0.1.0" }
+mol-cascade = { path = "crates/mol-cascade", version = "0.1.0" }
+mol-limits = { path = "crates/mol-limits", version = "0.1.0" }
+mol-automate = { path = "crates/mol-automate", version = "0.1.0" }
+mol-adapters = { path = "crates/mol-adapters", version = "0.1.0" }
+mol-desktop = { path = "crates/mol-desktop", version = "0.1.0" }
+thiserror = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std", "serde"] }
+clap = { version = "4", features = ["derive", "env"] }
+hmac = "0.12"
+sha2 = "0.10"
+hex = "0.4"
+uuid = { version = "1", features = ["v4", "serde"] }
+tokio = { version = "1", default-features = false, features = ["rt", "macros"] }

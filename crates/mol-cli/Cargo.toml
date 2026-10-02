@@ -1,0 +1,38 @@
+[package]
+name = "mol-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "mol binary: ask, explain-cascade, limits, receipt-verify, demo, agent, memory, fabric, meter, ecosystem-certify, replay, prove, run"
+readme = "../../README.md"
+
+[[bin]]
+name = "mol"
+path = "src/main.rs"
+
+[features]
+default = []
+# Optional: enable wgpu adapter probe for `mol fabric --detect`.
+fabric-detect = ["mol-core/fabric-detect"]
+wgpu-kernel = ["fabric-detect", "mol-core/wgpu-kernel"]
+# Optional: OS energy meter (Linux RAPL/powercap, macOS powermetrics). Soft-ref prove stays offline.
+energy-meter = ["mol-core/energy-meter"]
+# Alias of energy-meter.
+os-meter = ["energy-meter", "mol-core/os-meter"]
+
+[dependencies]
+mol-core = { workspace = true }
+mol-receipt = { workspace = true }
+mol-cascade = { workspace = true }
+mol-limits = { workspace = true }
+mol-automate = { workspace = true }
+mol-adapters = { workspace = true }
+mol-desktop = { workspace = true }
+clap = { workspace = true }
+serde_json = { workspace = true }
+serde = { workspace = true }
+serde_yaml = { workspace = true }

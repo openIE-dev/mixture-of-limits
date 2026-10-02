@@ -1,0 +1,32 @@
+[package]
+name = "mol-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Mixture of Limits core types: floors, zones, VoI, Landauer, ReplayClass"
+readme = "../../README.md"
+
+[features]
+default = []
+# Optional wgpu adapter probe (Metal/Vulkan/WebGPU). Default build stays light / offline-safe.
+fabric-detect = ["dep:wgpu", "dep:pollster"]
+# Alias: live tiny WGSL compute kernel (same gate as fabric-detect).
+wgpu-kernel = ["fabric-detect"]
+# Optional OS energy meter (Linux RAPL/powercap, macOS powermetrics). Soft-ref prove stays offline.
+energy-meter = []
+# Alias of energy-meter (optional OS joule probe).
+os-meter = ["energy-meter"]
+# Optional Wasmtime host for capsule invoke (default prove uses in-process stub).
+wasmtime = ["dep:wasmtime"]
+
+[dependencies]
+serde = { workspace = true }
+thiserror = { workspace = true }
+chrono = { workspace = true }
+wgpu = { version = "24", optional = true, default-features = true }
+pollster = { version = "0.4", optional = true }
+wasmtime = { version = "28", optional = true, default-features = false, features = ["cranelift", "runtime", "std"] }
