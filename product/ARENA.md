@@ -1,71 +1,70 @@
-# ARENA.md — Jev Arena beside `mol bench`
+# ARENA.md — `mol arena` head-on vs System One / frontier
 
-**Purpose:** Shortlist and inspect **System One / Model LAST** residual proposers with [Jev Arena](https://github.com/theaiautomators/jev-arena). Keep those results separate from Mixture of Limits **J/query** benches. Do not invent or import Arena / JevBench / DecisionBench scores into Mixture of Limits receipts.
+**Purpose:** Run Arena-shaped chores — **typed decision / ticket-close / risk** — and score Mixture of Limits cascade against **frontier_sim** (always-model) and **system_one_leaf** (Jev/Laya-class stub). Compete directly. Floors win when they exist; Model LAST still used when needed; peers age; each stands alone. Never invent `measured_j`.
 
-## Two different questions
+## One harness, head-on scoreboard
 
-| Harness | Question | Success |
+| Strategy | What it is | How it closes |
 |---|---|---|
-| **`mol bench`** | Did Lookup → Formula → Solver close before a model? Was refuse / certify / joule labeling honest? | **J/query**, refuse correctness, certify rate; labels **Estimated \| Metered** only |
-| **Jev Arena** | Among typed decision / classification profiles, which one is accurate, fast, and memory-fit for *this* deployment? | Decision / classification accuracy, latency, validity, workflow replay on pinned profiles |
-| **JevBench** / **DecisionBench** | Same class as Arena: structured decision accuracy (different suites and scorers) | Leaderboard / sealed aggregates — use for shortlist, not for MoL close law |
+| **mol_cascade** | Mixture of Limits Lookup → Formula → Solver → Model LAST | Floors first; VoI / `C(z)=1` refuse; NI certify |
+| **frontier_sim** | Always-model / frontier catalog surrogate | Burns model joules; ignores satiation / VoI refuse law |
+| **system_one_leaf** | Jev / Laya-class typed leaf stub | Known options → decide; **no** economic satiation; no VoI refuse |
 
-Mixture of Limits owns navigation + NI certify + satiation. Arena owns residual-leaf measurement when Model LAST is allowed.
+| Metric | Meaning |
+|---|---|
+| **correct_close** | Commit when expect commit; refuse satiation when `C(z)=1`; refuse VoI when VoI=0 |
+| **refuse_when_C=1** | Satiation floor fired (MoL) vs peers that still “decide” |
+| **estimated_j** | Catalog / receipt estimate — label **Estimated** (soft-ref) or **Metered** only |
+| **latency** | Wall microseconds per chore |
 
-## Run Mixture of Limits bench (canonical)
+External [Jev Arena](https://github.com/theaiautomators/jev-arena) remains useful to shortlist residual proposers. `mol arena` scores the **close law** those proposers sit under.
+
+## Run
 
 ```bash
 cd /Users/dcharlot/Desktop/mol-sync/mixture-of-limits
-cargo run -p mol-cli -- bench
-cargo run -p mol-cli -- bench --json   # machine-readable; still Estimated|Metered only
-cargo run -p mol-cli -- prove          # includes A10 bench-label honesty
+cargo run -p mol-cli -- arena
+cargo run -p mol-cli -- arena --json
+cargo run -p mol-cli -- bench --arena   # same path
+cargo run -p mol-cli -- bench           # classic J/query vs always-model / MoE-sim
+cargo run -p mol-cli -- prove           # includes A10 labels + A14 arena honesty
 ```
 
-Soft-ref never invents `measured_j`. MoE-sim rows are catalog surrogates, not RAPL / Arena GPU joules.
+Soft-ref never invents `measured_j`. Frontier / System One / MoE-sim joules are **Estimated** catalog surrogates — not RAPL, not Arena GPU package joules.
 
-## Run Jev Arena (local lab)
+## Chore shapes (fixtures under `product/fixtures/`)
 
-Independent project; unaffiliated with TypeSafe or OpenIE. Follow upstream README for Node 22+, uv, Docker, and GPU toolkit.
-
-**Linux:**
-
-```sh
-git clone https://github.com/theaiautomators/jev-arena.git
-cd jev-arena
-bash start-arena.sh
-# smaller first roster:
-bash start-arena.sh --prepare laya plumb decider
-```
-
-Open `http://127.0.0.1:8787`. Setup → prepare selected models → Run a new test (Smoke → Demo → Full). Full runs can take hours and may call hosted Jev if `TYPESAFE_API_KEY` is set.
-
-**Windows:** `.\Start-Arena.ps1` (optional `-Prepare -Models laya,plumb,decider`).
-
-Optional hosted Jev: copy `.env.example` → `.env`, set `TYPESAFE_API_KEY`, restart. Keys stay server-side; never commit `.env`.
-
-Portable reports without local weights: see Arena `results/README.md` and published HTML / evidence packages.
+| Kind | Example ask | Expect |
+|---|---|---|
+| Ticket-close LUT | `ticket close resolution=R-HOWTO` | Commit Lookup (model cold) |
+| Risk LUT | `risk score band=RISK-MED` | Commit Lookup |
+| Typed decision | `typed decide pick=D-APPROVE options=[…]` | Commit Lookup |
+| Satiation | same asks + `C(z)=1` snapshot | MoL **REFUSE** `satiation`; peers still commit |
+| VoI | free-form poem | MoL **REFUSE** `voi`; peers still commit |
 
 ## Recommended operator workflow
 
-1. Write chore `C(z)` and floors in `product/mol.yaml` (or a chore under `product/chores/`).
+1. Write chore `C(z)` and floors in `product/mol.yaml` (or `product/chores/`).
 2. Prove close law: `mol prove` / `mol run --chore …` with `allow_model=false` until floors fail honestly.
-3. If Model LAST must open, shortlist residual proposers with Arena (or JevBench / DecisionBench for aggregate context).
-4. Plug one proposer behind the residual leaf; keep NI certify between proposal and irreversible commit.
-5. Re-run `mol bench` for J/query — do **not** paste Arena accuracy into MoL joule rows.
+3. Score head-on: `mol arena` — report correct_close, refuse-when-C=1, estimated_j, latency.
+4. If Model LAST must open, shortlist residual proposers with Jev Arena / JevBench / DecisionBench.
+5. Plug one proposer behind the residual leaf; keep NI certify between proposal and irreversible commit.
+6. Re-run `mol bench` / `mol arena` — do **not** invent measured board joules.
 
 ## Related links
 
 | Link | Use |
 |---|---|
-| https://github.com/theaiautomators/jev-arena | Local decision-model lab |
+| https://github.com/theaiautomators/jev-arena | Local decision-model lab (residual shortlist) |
 | https://github.com/fstandhartinger/jevbench | Jev-class typed-decision benchmark |
 | https://benchmarkheaven.com/jev-models | Live JevBench board |
 | https://huggingface.co/spaces/Hanno-Labs/decision-bench-leaderboard | DecisionBench leaderboard |
 | https://typesafe.ai/ · https://docs.typesafe.ai/models | Hosted Jev / System One API |
-| [COMPETITIVE.md](./COMPETITIVE.md) | Positioning: floors first; proposers as residual leaf |
+| [COMPETITIVE.md](./COMPETITIVE.md) | Head-on positioning + soft-ref numbers |
 
-## Honesty fence
+## Honesty
 
-- No MoL claim of winning Arena matched-label accuracy, JevBench composite, or DecisionBench family scores.
-- No geographic ranking of labs, networks, or GPUs — measure on the hardware and path you will ship.
-- Teacher-labeled or generated Arena cases measure agreement under those protocols, not plant safety or satiation.
+- No invented `measured_j`. Soft-ref rows are **Estimated**.
+- No invented Arena / JevBench composite scores pasted into MoL receipts.
+- Frontier catalog `estimated_j` is a surrogate — expensive by design, not a meter claim.
+- System One leaf stub costs are catalog encoder-class estimates — not hosted Jev package joules.

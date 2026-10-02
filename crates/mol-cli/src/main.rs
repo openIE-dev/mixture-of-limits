@@ -155,6 +155,15 @@ enum Commands {
         /// Print JSON report.
         #[arg(long, default_value_t = false)]
         json: bool,
+        /// Arena-shaped head-on: typed / ticket / risk — MoL vs frontier_sim vs system_one_leaf.
+        #[arg(long, default_value_t = false)]
+        arena: bool,
+    },
+    /// Arena head-on chores (alias of `mol bench --arena`).
+    Arena {
+        /// Print JSON report.
+        #[arg(long, default_value_t = false)]
+        json: bool,
     },
     /// Primitive Distillation Loop v1: certified Model LAST → Lookup/Formula append.
     Distill {
@@ -273,7 +282,8 @@ fn main() -> ExitCode {
         Commands::Memory => cmd_memory(),
         Commands::Fabric { detect, mock, json } => cmd_fabric(detect, mock, json),
         Commands::Meter { sample_ms } => cmd_meter(sample_ms),
-        Commands::Bench { json } => bench::cmd_bench(json),
+        Commands::Bench { json, arena } => bench::cmd_bench(json, arena),
+        Commands::Arena { json } => bench::cmd_arena(json),
         Commands::Distill {
             proposal,
             gear,

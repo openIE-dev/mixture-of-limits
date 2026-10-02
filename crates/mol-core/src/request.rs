@@ -193,6 +193,12 @@ impl QueryKind {
             || q.contains("risk-")
             || q.contains("band=")
             || q.contains("risk_score")
+            || q.contains("typed decide")
+            || q.contains("typed decision")
+            || q.contains("decision=")
+            || q.contains(" pick=")
+            || q.starts_with("d-")
+            || q.contains(" d-")
         {
             Self::TicketClose
         } else {

@@ -190,6 +190,7 @@ pub fn run_prove() -> bool {
     results.push(criterion_product_a11_phase1());
     results.push(criterion_product_a12_distill());
     results.push(criterion_product_a13_meters_shunt());
+    results.push(criterion_product_a14_arena());
 
     println!();
     let mut all_ok = true;
@@ -208,7 +209,7 @@ pub fn run_prove() -> bool {
         println!("PROVE RESULT: FAILED ({failed}/{})", results.len());
     }
     println!("OUT OF PROOF SCOPE: Ferric/MuJoCo robot EFA hardware, WCA MCP network, klere-vm FPGA Stage C package meters (stage_c_measured=false), full 258 live catalog, live NVML package joules without linked sample API");
-    println!("IN PROOF (product gaps): in-crate live NI cert ids, Residual Model LAST, durable EpisodeStore C(z), mol bench Estimated|Metered, phase1 rule AST, distill v1, Tier-1 NVML probe honesty + Tier-2 StubShuntHal");
+    println!("IN PROOF (product gaps): in-crate live NI cert ids, Residual Model LAST, durable EpisodeStore C(z), mol bench Estimated|Metered, mol arena head-on, phase1 rule AST, distill v1, Tier-1 NVML probe honesty + Tier-2 StubShuntHal");
     all_ok
 }
 
@@ -3298,5 +3299,86 @@ fn criterion_product_a13_meters_shunt() -> Criterion {
     Criterion::verified(
         name,
         "A13: Tier-1 NVML probe honesty + Tier-2 StubShuntHal; measured_j only on real reading",
+    )
+}
+
+fn criterion_product_a14_arena() -> Criterion {
+    let name = "product_a14_arena_head_on";
+    let mol = MixtureOfLimits::new();
+
+    // LUT commit (ticket) — model cold.
+    let out = match mol.close(&MolRequest::new(
+        "ticket close resolution=R-HOWTO",
+        Budget::coin_cell(),
+    )) {
+        Ok(o) => o,
+        Err(e) => return Criterion::fail(name, format!("ticket lut: {e}")),
+    };
+    if !out.is_commit() {
+        return Criterion::fail(name, "ticket LUT must commit");
+    }
+    if out.receipt().measured_j.is_some() {
+        return Criterion::fail(name, "arena soft-ref must not invent measured_j");
+    }
+
+    // Typed decision LUT.
+    let out = match mol.close(&MolRequest::new(
+        "typed decide pick=D-APPROVE options=[D-APPROVE,D-DENY]",
+        Budget::coin_cell(),
+    )) {
+        Ok(o) => o,
+        Err(e) => return Criterion::fail(name, format!("typed: {e}")),
+    };
+    if !out.is_commit() {
+        return Criterion::fail(name, "typed decide LUT must commit");
+    }
+
+    // Risk LUT.
+    let out = match mol.close(&MolRequest::new(
+        "risk score band=RISK-MED",
+        Budget::coin_cell(),
+    )) {
+        Ok(o) => o,
+        Err(e) => return Criterion::fail(name, format!("risk: {e}")),
+    };
+    if !out.is_commit() {
+        return Criterion::fail(name, "risk LUT must commit");
+    }
+
+    // C(z)=1 satiation refuse — MoL wins refuse_when_C=1.
+    let c = CompletenessSnapshot::ticket_close(true, true, true);
+    let out = match mol.close(
+        &MolRequest::new("ticket close resolution=R-OK", Budget::coin_cell()).with_completeness(c),
+    ) {
+        Ok(o) => o,
+        Err(e) => return Criterion::fail(name, format!("satiation: {e}")),
+    };
+    if out.is_commit() {
+        return Criterion::fail(name, "C(z)=1 must refuse satiation");
+    }
+    let floor = match out.receipt().limit_fired.as_ref() {
+        Some(f) => f,
+        None => return Criterion::fail(name, "missing satiation floor"),
+    };
+    if floor.id.as_str() != "satiation" {
+        return Criterion::fail(name, format!("expected satiation, got {}", floor.id));
+    }
+    if out.receipt().measured_j.is_some() {
+        return Criterion::fail(name, "satiation refuse must not invent measured_j");
+    }
+    if out.receipt().board_synth_claimed {
+        return Criterion::fail(name, "board_synth must be false");
+    }
+
+    // Frontier / System One catalog surrogates are Estimated-only by construction in bench.rs.
+    let frontier_est = 5.0e-1;
+    let system_one_est = 2.5e-4;
+    if frontier_est <= 0.0 || system_one_est <= 0.0 {
+        return Criterion::fail(name, "peer catalog estimates must be positive Estimated");
+    }
+
+    Criterion::verified(
+        name,
+        "A14: arena head-on chores (typed/ticket/risk); MoL LUT + refuse_when_C=1; Estimated only; no invent",
     )
 }

@@ -70,11 +70,12 @@ Implementation lives beside `prove.rs` as `run.rs`: parse yaml → build `MolReq
 ```bash
 mol prove
 mol run --chore product/mol.yaml
-mol bench [--json]
+mol bench [--json] [--arena]
+mol arena [--json]
 mol phase1 "please close ticket as R-OK"
 mol distill "residual text" --gear lookup --store product/fixtures/distill_store.json
 ```
 
 ## Roadmap polish
 
-`mol dev` (watch, receipt diff UI) — not required for A1–A13.
+`mol dev` (watch, receipt diff UI) — not required for A1–A14.

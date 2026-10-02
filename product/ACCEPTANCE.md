@@ -131,6 +131,15 @@ Physics-informed acceptance. Soft-ref proves constructive existence; these tests
 | When | Probe absent / stub |
 | Then | `measured_j=None`; StubShuntHal never invents; NVML without sample API stays unavailable |
 
+
+## A14 — `mol arena` head-on
+
+| Field | Value |
+|---|---|
+| Given | Arena chores: typed decision / ticket-close / risk |
+| When | `mol arena` (or `mol bench --arena`) |
+| Then | MoL cascade vs frontier_sim vs system_one_leaf; metrics correct_close, refuse_when_C=1, estimated_j (Estimated), latency; never invent `measured_j` |
+
 ## Acceptance matrix
 
 | ID | Must pass |
@@ -148,17 +157,19 @@ Physics-informed acceptance. Soft-ref proves constructive existence; these tests
 | A11 | Phase-1 rule AST workable |
 | A12 | Distill v1 certified→Lookup |
 | A13 | Tier-1 NVML + Tier-2 shunt honesty |
+| A14 | `mol arena` head-on Estimated only; no invent |
 
 ## How to run (today)
 
 ```bash
 cd /Users/dcharlot/Desktop/mol-sync/mixture-of-limits
 cargo test --workspace
-cargo run -p mol-cli -- prove          # PLAN.md + product A1–A13 VERIFIED (42)
+cargo run -p mol-cli -- prove          # PLAN.md + product A1–A14
 cargo run -p mol-cli -- run --chore product/mol.yaml
 cargo run -p mol-cli -- bench
+cargo run -p mol-cli -- arena
 cargo run -p mol-cli -- phase1 "please close ticket as R-OK"
 cargo run -p mol-cli -- distill "ticket summary" --store product/fixtures/distill_store.json
 ```
 
-`mol prove` embeds product acceptance A1–A13. Competitive positioning: [COMPETITIVE.md](./COMPETITIVE.md).
+`mol prove` embeds product acceptance A1–A14. Competitive positioning: [COMPETITIVE.md](./COMPETITIVE.md).

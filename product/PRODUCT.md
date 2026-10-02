@@ -29,7 +29,7 @@ Laya collapses generation cost when the option set is known ([laya-ai.com/system
 
 Cited already in OpenIE research triad (NI + Satiation papers): System One = typed proposers (Laya / Jev class); WCA decides whether the machine may move.
 
-**Ecosystem note (2026):** TypeSafe **Jev** and open System One peers (Laya, Decider, SemIf, Nimble, Winnow, Plumb, …) are measured for decision/classification accuracy by [Jev Arena](https://github.com/theaiautomators/jev-arena), [JevBench](https://github.com/fstandhartinger/jevbench), and [DecisionBench](https://huggingface.co/spaces/Hanno-Labs/decision-bench-leaderboard). Mixture of Limits does not compete on those axes. It keeps Lookup → Formula → Solver first, VoI/satiation refuse, NI certify, and `estimated_j` / J·query honesty — and treats those models as the residual **Model LAST** leaf when floors do not close. See [COMPETITIVE.md](./COMPETITIVE.md) and [ARENA.md](./ARENA.md).
+**Competitive note (2026):** Mixture of Limits competes head-on. On Arena-shaped chores (typed decision / ticket-close / risk), `mol arena` scores MoL cascade vs frontier always-model vs System One leaf (Jev/Laya-class stub) on **correct_close**, **refuse-when-C=1**, **estimated_j**, and latency. Floors win when they exist; Model LAST still opens when needed; peers age; each stands alone; frontier is expensive/out of road; time is fair. TypeSafe **Jev** and open System One peers remain lawful residual proposers — and still lose close-law rows when they ignore VoI / satiation. See [COMPETITIVE.md](./COMPETITIVE.md) and [ARENA.md](./ARENA.md).
 
 ## Value prop (one sentence)
 
@@ -48,7 +48,7 @@ Cited already in OpenIE research triad (NI + Satiation papers): System One = typ
 - Not a journal paper rewrite; not more diagnosis of MoE.
 - Not claiming shipped board / FPGA package energy (`board_synth_claimed=false` on soft-ref).
 - Not inventing `measured_j` from catalog Landauer or OpCounter estimates.
-- Not replacing Laya / Jev / System One proposers for closed typed menus (nor inventing Arena/JevBench scores).
+- Not inventing Arena/JevBench composite scores as MoL scores; System One remains Model LAST for closed menus after floors miss — and still faces `mol arena` close-law scoring.
 - Live WCA **MCP network** / Ferric robot EFA / klere-vm FPGA Stage C package meters remain out of soft-ref prove (in-crate NI certify + Stage C unmetered **are** in prove).
 - Full Periodic Stack 258 live catalog still residual (subset navigator in prove).
 - Not a new consumer brand name without explicit approval (see name table).

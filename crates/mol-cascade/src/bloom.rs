@@ -94,6 +94,10 @@ impl ResolutionLut {
             ("RISK-LOW", "Risk score band LOW (lookup table; model cold)"),
             ("RISK-MED", "Risk score band MED (lookup table; model cold)"),
             ("RISK-HIGH", "Risk score band HIGH (lookup table; model cold)"),
+            // Arena-shaped typed decision (known option set → O(1); model cold).
+            ("D-APPROVE", "Typed decision: APPROVE (option-set LUT; model cold)"),
+            ("D-DENY", "Typed decision: DENY (option-set LUT; model cold)"),
+            ("D-ESCALATE", "Typed decision: ESCALATE (option-set LUT; model cold)"),
         ];
         for (code, ans) in rows {
             lut.insert(code, ans);
@@ -154,7 +158,15 @@ impl ResolutionLut {
     pub fn lookup_in_query(&self, query: &str) -> Option<(String, String)> {
         // Prefer explicit resolution=CODE / code=CODE
         let q = query.to_ascii_uppercase();
-        for pref in ["RESOLUTION=", "RESOLUTION_CODE=", "CODE=", "BAND="] {
+        for pref in [
+            "RESOLUTION=",
+            "RESOLUTION_CODE=",
+            "CODE=",
+            "BAND=",
+            "DECISION=",
+            "PICK=",
+            "OPTION=",
+        ] {
             if let Some(i) = q.find(pref) {
                 let rest = &q[i + pref.len()..];
                 let tok = rest
@@ -166,9 +178,9 @@ impl ResolutionLut {
                 }
             }
         }
-        // Bare tokens that look like R-* or RISK-*
+        // Bare tokens that look like R-* / RISK-* / D-*
         for tok in q.split(|c: char| !c.is_ascii_alphanumeric() && c != '-') {
-            if tok.starts_with("R-") || tok.starts_with("RISK-") {
+            if tok.starts_with("R-") || tok.starts_with("RISK-") || tok.starts_with("D-") {
                 if let Some(ans) = self.lookup(tok) {
                     return Some((normalize_code(tok), ans.to_string()));
                 }
