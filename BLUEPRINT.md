@@ -164,7 +164,7 @@ Implemented as:
 
 ## 8. Security / honesty
 
-1. **No fake RAPL/NVML/powermetrics** — `measured_j: Option` plus `component_measured` (CPU/GPU/ANE/DRAM/package). `MeasureSource::{Rapl,Powermetrics,IoReport,Nvml,CpuProxy}` only when that probe returned numbers. Missing rails stay absent (not zero). Package is not a sum of rails. Windows ETW is a later stub.  
+1. **No fake RAPL/NVML/powermetrics** — `measured_j: Option` plus `component_measured` (CPU/GPU/ANE/DRAM/package). `MeasureSource::{Rapl,Nvml,Powermetrics,IoReport,Smc,CpuProxy}` only when that probe returned numbers. Tier-1 live path (`energy-meter`): RAPL powercap, NVML via nvidia-smi (never util%), macOS SMC PSTR + IOReport. Missing rails stay absent (not zero). Package is not a sum of rails. Windows ETW is a later stub. Soft-ref prove A13.  
 2. **Estimated vs measured labels** — `estimated_j` + `EstimateKind`; cascade uses `CascadeEstimate` / `CatalogSurrogate`.  
 3. **`board_synth_claimed = false`** always (software reference).  
 4. **Refuse over escalate** when unsafe (automate destructive heuristics; VoI; budget).  

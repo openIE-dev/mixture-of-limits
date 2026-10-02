@@ -15,7 +15,7 @@ Drafting mirror may also live at:
 
 ```bash
 cargo test --workspace
-cargo run -p mol-cli -- prove   # 42 VERIFIED incl. A1–A13
+cargo run -p mol-cli -- prove   # 43 VERIFIED incl. A1–A14 (A13 = Tier-1 RAPL/NVML/macOS-SMC honesty)
 cargo run -p mol-cli -- run --chore product/mol.yaml
 cargo run -p mol-cli -- bench
 ```

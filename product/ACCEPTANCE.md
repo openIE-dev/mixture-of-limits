@@ -123,13 +123,15 @@ Physics-informed acceptance. Soft-ref proves constructive existence; these tests
 | When | `mol distill` / `distill_certified_model_last` then cascade with `with_distill_store` |
 | Then | Lookup/Formula append with Deterministic replay; **second pass** matching the distilled pattern closes at **Lookup** (or Formula) **without** opening Model LAST; uncertified refuses |
 
-## A13 — Tier-1 NVML + Tier-2 shunt HAL
+## A13 — Tier-1 RAPL / NVML / macOS equivalent + Tier-2 shunt HAL
 
 | Field | Value |
 |---|---|
-| Given | Optional meters |
-| When | Probe absent / stub |
-| Then | `measured_j=None`; StubShuntHal never invents; NVML without sample API stays unavailable |
+| Given | Optional meters (`energy-meter`) |
+| When | Probe absent / feature off / stub / util%-only CSV |
+| Then | `measured_j=None`; StubShuntHal never invents; NVML never invents from utilization % |
+| When | Fixture or live probe returns real RAPL delta / NVML `power.draw`×window (or energy.consumed delta) / macOS SMC `PSTR`×window |
+| Then | `measured_j` set from that Metered package reading only; never rail-sum; never invent |
 
 
 ## A14 — `mol arena` head-on
@@ -156,7 +158,7 @@ Physics-informed acceptance. Soft-ref proves constructive existence; these tests
 | A10 | `mol bench` Estimated\|Metered only |
 | A11 | Phase-1 rule AST workable |
 | A12 | Distill v1 certified→Lookup; second pass Lookup without model |
-| A13 | Tier-1 NVML + Tier-2 shunt honesty |
+| A13 | Tier-1 RAPL/NVML/macOS-SMC + Tier-2 shunt honesty |
 | A14 | `mol arena` head-on Estimated only; no invent |
 
 ## How to run (today)

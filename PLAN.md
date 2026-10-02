@@ -55,7 +55,7 @@ Product doc: [`docs/mol-desktop.md`](./docs/mol-desktop.md).
 
 Scaffold: crate `mol-desktop` — headless `ShellSession` always; optional `--features gui` window. Soft-ref prove stays green offline.
 
-**OS energy meter (optional `energy-meter` / `os-meter`):** Linux RAPL/powercap domains (package/core/dram/gpu). macOS rails **CPU, GPU, ANE, DRAM** via IOReport Energy Model + package via SMC `PSTR` (no sudo); `powermetrics` combined_power still needs root. Windows ETW is a later stub. `measured_j` is the package/combined counter only; `component_measured` holds rails that were actually read. Fail/VM → `measured_j=None`, `measure_source=unavailable` — **never invent**, never sum rails into package.
+**OS energy meter (optional `energy-meter` / `os-meter`) — Tier-1:** Linux RAPL/powercap domains (package/core/dram/gpu). **NVML** via `nvidia-smi` (`power.draw`×window or `energy.consumed` mJ delta → package `measured_j`; never util%). macOS rails **CPU, GPU, ANE, DRAM** via IOReport Energy Model + package via SMC `PSTR` (no sudo); `powermetrics` combined_power still needs root. Windows ETW is a later stub. `measured_j` is the package/combined counter only; `component_measured` holds rails that were actually read. Fail/VM/feature-off → `measured_j=None`, `measure_source=unavailable` — **never invent**, never sum rails into package. Soft-ref `mol prove` A13 covers fixtures + honesty.
 
 ## 2. Non-goals
 

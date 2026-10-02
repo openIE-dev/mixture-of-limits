@@ -8,8 +8,9 @@ use mol_automate::{Act, ActKind, AgentLoop, AutomateGate, Capability, Capability
 use mol_cascade::{distill_certified_model_last, DistillStore, ResidualModelAdapter};
 use mol_core::{
     CompletenessSnapshot, EpisodeStore, Phase1Config, StubShuntHal, ShuntHal, energy_pair_honest, host_invoke,
-    measure_energy_window, parse_powermetrics_output, probe_meter_capability, probe_nvml_capability,
-    run_phase1, sample_from_rapl_counters, sample_from_smc_pstr_watts, sample_nvml, AdapterBackendHint,
+    measure_energy_window, parse_nvidia_smi_power_csv, parse_powermetrics_output, probe_meter_capability,
+    probe_nvml_capability, run_phase1, sample_from_nvml_watts, sample_from_rapl_counters,
+    sample_from_smc_pstr_watts, sample_nvml, AdapterBackendHint,
     AgentIsolationPolicy, Phase1Outcome,
     AgentLaneSession, Budget, CapsuleContext, CapsuleGrant, CapsuleInvoke, CapsuleRuntime,
     CascadeTier, Deterministic, DeviceKind, EnergyHonestyClass, EstimateKind, FabricInventory,
@@ -208,8 +209,8 @@ pub fn run_prove() -> bool {
         let failed = results.iter().filter(|c| !c.ok).count();
         println!("PROVE RESULT: FAILED ({failed}/{})", results.len());
     }
-    println!("OUT OF PROOF SCOPE: Ferric/MuJoCo robot EFA hardware, WCA MCP network, klere-vm FPGA Stage C package meters (stage_c_measured=false), full 258 live catalog, live NVML package joules without linked sample API");
-    println!("IN PROOF (product gaps): in-crate live NI cert ids, Residual Model LAST, durable EpisodeStore C(z), mol bench Estimated|Metered, mol arena head-on, phase1 rule AST, distill v1, Tier-1 NVML probe honesty + Tier-2 StubShuntHal");
+    println!("OUT OF PROOF SCOPE: Ferric/MuJoCo robot EFA hardware, WCA MCP network, klere-vm FPGA Stage C package meters (stage_c_measured=false), full 258 live catalog, live nvidia-smi on hosts without NVIDIA (feature energy-meter still honest-unavailable)");
+    println!("IN PROOF (product gaps): in-crate live NI cert ids, Residual Model LAST, durable EpisodeStore C(z), mol bench Estimated|Metered, mol arena head-on, phase1 rule AST, distill v1, Tier-1 RAPL/NVML/macOS-SMC meter honesty + Tier-2 StubShuntHal");
     all_ok
 }
 
@@ -3322,17 +3323,77 @@ fn criterion_product_a12_distill() -> Criterion {
 
 fn criterion_product_a13_meters_shunt() -> Criterion {
     let name = "product_a13_tier1_nvml_tier2_shunt";
+    // Soft-ref prove (energy-meter off): NVML stays unavailable and never invents.
     let nvml = probe_nvml_capability();
-    if nvml.available {
+    let sample = sample_nvml(10);
+    if sample.measured_j.is_some() && !sample.honesty_ok() {
+        return Criterion::fail(name, "NVML sample honesty_ok failed with measured_j set");
+    }
+    if !mol_core::ENERGY_METER_ENABLED {
+        if nvml.available {
+            return Criterion::fail(
+                name,
+                "feature-off NVML must not claim available=true",
+            );
+        }
+        if sample.measured_j.is_some() {
+            return Criterion::fail(name, "feature-off sample_nvml must never invent measured_j");
+        }
+    } else if nvml.available {
+        // Linked live path: measured_j only from a real reading.
+        if sample.measured_j.is_none() {
+            return Criterion::fail(
+                name,
+                "energy-meter NVML available=true but sample produced no measured_j",
+            );
+        }
+        if sample.source != mol_core::MeasureSource::Nvml {
+            return Criterion::fail(name, "live NVML sample source must be nvml");
+        }
+    } else if sample.measured_j.is_some() {
+        return Criterion::fail(name, "unavailable NVML must not invent measured_j");
+    }
+
+    // Fixture: real watts → measured_j; util% → never invent.
+    let fixture = sample_from_nvml_watts(80.0, 500);
+    if !fixture.honesty_ok() || fixture.measured_j.is_none() {
+        return Criterion::fail(name, "NVML watts fixture must set honest measured_j");
+    }
+    if (fixture.measured_j.unwrap().0 - 40.0).abs() > 1e-9 {
         return Criterion::fail(
             name,
-            "NVML available=true without linked sample must not claim measured capability",
+            format!("NVML watts fixture expected 40 J, got {:?}", fixture.measured_j),
         );
     }
-    let sample = sample_nvml(10);
-    if sample.measured_j.is_some() {
-        return Criterion::fail(name, "sample_nvml must never invent measured_j");
+    let util = parse_nvidia_smi_power_csv("90 %\n", 100);
+    if util.measured_j.is_some() {
+        return Criterion::fail(name, "util% CSV must never invent measured_j");
     }
+
+    // macOS Tier-1 equivalent fixture (SMC) — package only, never rail-sum invent.
+    let smc = sample_from_smc_pstr_watts(10.0, 1000);
+    if !smc.honesty_ok() || smc.measured_j.map(|j| (j.0 - 10.0).abs() > 1e-9).unwrap_or(true) {
+        return Criterion::fail(name, "SMC PSTR fixture must set honest package measured_j");
+    }
+
+    // RAPL fixture still honest (package domain).
+    let rapl = sample_from_rapl_counters(
+        &[mol_core::RaplCounter {
+            name: "package-0".into(),
+            energy_uj: 1_000_000,
+            max_energy_uj: Some(10_000_000),
+        }],
+        &[mol_core::RaplCounter {
+            name: "package-0".into(),
+            energy_uj: 2_500_000,
+            max_energy_uj: Some(10_000_000),
+        }],
+        100,
+    );
+    if !rapl.honesty_ok() || rapl.measured_j.is_none() {
+        return Criterion::fail(name, "RAPL fixture must set honest measured_j");
+    }
+
     let shunt = StubShuntHal;
     if shunt.probe().available || shunt.read_package_j(10).is_some() {
         return Criterion::fail(name, "StubShuntHal must never invent");
@@ -3342,7 +3403,7 @@ fn criterion_product_a13_meters_shunt() -> Criterion {
     }
     Criterion::verified(
         name,
-        "A13: Tier-1 NVML probe honesty + Tier-2 StubShuntHal; measured_j only on real reading",
+        "A13: Tier-1 RAPL/NVML/macOS-SMC fixtures + live honesty; Tier-2 StubShuntHal; measured_j only on real reading",
     )
 }
 

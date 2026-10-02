@@ -69,7 +69,7 @@ Meta-routing stays **strictly cheaper than the smallest allowed inference leaf**
 | Tier | Source | `measured_j` |
 |---|---|---|
 | 0 Analytical | Catalog μ, Landauer estimate, OpCounter | Never from estimates alone |
-| 1 OS telemetry | RAPL / IOReport / powermetrics | Only if Metered probe succeeds |
+| 1 OS telemetry | Linux RAPL/powercap; NVIDIA NVML via `nvidia-smi` (`power.draw`×window or `energy.consumed` delta); macOS IOReport rails + SMC `PSTR` package (or root powermetrics) | Only if Metered probe succeeds — never invent; never util%; never rail-sum into package |
 | 2 Shunt / package | Certified meter | Metered package reading |
 
 Soft-ref default: `board_synth_claimed=false`, `measured_j=None`.

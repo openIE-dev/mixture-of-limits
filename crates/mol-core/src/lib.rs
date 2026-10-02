@@ -98,8 +98,9 @@ pub use landauer::{
 };
 pub use meter::{
     measure_energy_during, measure_energy_window, meter_status_line, parse_powermetrics_output,
-    probe_meter_capability, probe_nvml_capability, sample_from_rapl_counters, sample_from_smc_pstr_watts,
-    sample_nvml, ComponentJoules, MeterCapability, MeterComponent, MeterSample, RaplCounter,
+    parse_nvidia_smi_power_csv, probe_meter_capability, probe_nvml_capability, sample_from_nvml_energy_mj,
+    sample_from_nvml_watts, sample_from_rapl_counters, sample_from_smc_pstr_watts, sample_nvml,
+    ComponentJoules, MeterCapability, MeterComponent, MeterSample, RaplCounter,
     ENERGY_METER_ENABLED, MACOS_METER_HELP, METER_HONESTY_NOTE,
 };
 pub use mu::{

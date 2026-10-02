@@ -1,7 +1,7 @@
 # macOS package meter hunt (2026-09-30, M5 Max, macOS 27.0.1)
 
 ## Goal
-No-sudo **package / combined** joules so `FailClosedPolicy::meter_required` can COMMIT with real `measured_j` — never invent by summing cpu+gpu+ane+dram.
+macOS **Tier-1** equivalent to Linux RAPL / NVIDIA NVML: no-sudo **package / combined** joules so `FailClosedPolicy::meter_required` can COMMIT with real `measured_j` — never invent by summing cpu+gpu+ane+dram. Product acceptance A13 covers RAPL + NVML + SMC fixtures together.
 
 ## Surfaces probed
 

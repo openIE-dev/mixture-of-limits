@@ -1267,32 +1267,435 @@ Combined Power (CPU + GPU + ANE): 470 mW
             MeasureSource::Smc
         );
     }
+
+    #[test]
+    fn nvml_watts_fixture_sets_package_measured_j() {
+        let s = sample_from_nvml_watts(100.0, 1000);
+        assert!(s.honesty_ok(), "{}", s.detail);
+        assert_eq!(s.source, MeasureSource::Nvml);
+        assert!((s.measured_j.unwrap().0 - 100.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn nvml_energy_mj_delta_sets_package() {
+        let s = sample_from_nvml_energy_mj(1000.0, 2500.0, 500);
+        assert!(s.honesty_ok(), "{}", s.detail);
+        assert_eq!(s.source, MeasureSource::Nvml);
+        assert!((s.measured_j.unwrap().0 - 1.5).abs() < 1e-12);
+    }
+
+    #[test]
+    fn nvml_energy_wrap_does_not_invent() {
+        let s = sample_from_nvml_energy_mj(2000.0, 1000.0, 100);
+        assert!(s.measured_j.is_none());
+        assert_eq!(s.source, MeasureSource::Unavailable);
+    }
+
+    #[test]
+    fn nvidia_smi_csv_power_integrates() {
+        let s = parse_nvidia_smi_power_csv("45.0\n55.0\n", 1000);
+        assert!(s.honesty_ok(), "{}", s.detail);
+        assert!((s.measured_j.unwrap().0 - 50.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn nvidia_smi_csv_util_percent_never_invents() {
+        let s = parse_nvidia_smi_power_csv("85 %\n", 1000);
+        assert!(s.measured_j.is_none());
+        assert!(s.detail.contains("util") || s.detail.contains("percent") || s.detail.contains("utilization"));
+    }
+
+    #[test]
+    fn sample_nvml_feature_off_or_no_gpu_never_invents() {
+        let cap = probe_nvml_capability();
+        let s = sample_nvml(20);
+        assert!(s.measured_j.is_none(), "must not invent: {}", s.detail);
+        if !ENERGY_METER_ENABLED {
+            assert!(!cap.available);
+        } else if !cap.available {
+            assert_eq!(s.source, MeasureSource::Unavailable);
+        } else {
+            // Live NVIDIA host with energy-meter: measured_j only if sample succeeded.
+            assert!(s.honesty_ok(), "{}", s.detail);
+            assert_eq!(s.source, MeasureSource::Nvml);
+            assert!(s.measured_j.is_some());
+        }
+    }
 }
 
 
 /// Tier-1 optional NVML probe (NVIDIA). Never invents `measured_j`.
 ///
-/// Soft detection of `nvidia-smi` only. Presence ≠ package joule reading —
-/// without a linked NVML sample API, `measured_j` stays None.
+/// Soft-ref / feature-off: always unavailable. With `energy-meter`, presence of
+/// `nvidia-smi` alone is not enough — a dry `power.draw` (or energy) query must
+/// return a finite number before `available=true`. Utilization % never counts.
 pub fn probe_nvml_capability() -> MeterCapability {
-    let smi = std::path::Path::new("/usr/bin/nvidia-smi");
-    let smi_local = std::path::Path::new("/usr/local/bin/nvidia-smi");
-    if smi.exists() || smi_local.exists() {
-        return MeterCapability {
-            available: false,
-            source: MeasureSource::Nvml,
-            detail: "nvidia-smi present but MoL NVML sample path not linked; measured_j=None (never invent from utilization %)".into(),
-            platform: "nvml",
-        };
+    if !ENERGY_METER_ENABLED {
+        return MeterCapability::unavailable(
+            "nvml",
+            "energy-meter feature off — Tier-1 NVML measured_j stays None",
+        );
     }
-    MeterCapability::unavailable(
-        "nvml",
-        "NVML / nvidia-smi not present; Tier-1 NVML measured_j stays None",
+    nvml_tier1::probe()
+}
+
+/// Sample Tier-1 NVML over `window_ms`. Real power×time or energy delta only.
+///
+/// Never invents from GPU utilization. Feature off / no driver / parse fail →
+/// `measured_j=None`.
+pub fn sample_nvml(window_ms: u64) -> MeterSample {
+    if !ENERGY_METER_ENABLED {
+        return MeterSample::unavailable(
+            window_ms,
+            "energy-meter feature off — NVML measured_j=None",
+        );
+    }
+    nvml_tier1::sample(window_ms)
+}
+
+/// Build a package sample from NVML average GPU watts × window (fixture-safe).
+///
+/// Device-total GPU energy is stamped as Package with [`MeasureSource::Nvml`]
+/// so `measured_j` may populate on a real reading (same honesty pattern as SMC
+/// PSTR). Never invents from utilization %.
+pub fn sample_from_nvml_watts(avg_watts: f64, window_ms: u64) -> MeterSample {
+    if !avg_watts.is_finite() || avg_watts < 0.0 || window_ms == 0 {
+        return MeterSample::unavailable(
+            window_ms,
+            "nvml watts: non-finite/negative watts or zero window — measured_j=None",
+        );
+    }
+    let sec = window_ms as f64 / 1000.0;
+    let j = avg_watts * sec;
+    if !j.is_finite() || j < 0.0 {
+        return MeterSample::unavailable(window_ms, "nvml watts: joule product invalid — measured_j=None");
+    }
+    let components = vec![ComponentJoules {
+        component: MeterComponent::Package,
+        joules: Joules::new(j),
+        measure_source: MeasureSource::Nvml,
+    }];
+    finish_sample(
+        components,
+        MeasureSource::Nvml,
+        window_ms,
+        &format!("nvml power.draw avg_W={avg_watts:.6}"),
     )
 }
 
-/// Sample NVML when a real reading API is wired. Default: unavailable (never invent).
-pub fn sample_nvml(window_ms: u64) -> MeterSample {
-    let cap = probe_nvml_capability();
-    MeterSample::unavailable(window_ms, format!("NVML sample: {}", cap.detail))
+/// Build a package sample from NVML energy-consumed counter delta (mJ → J).
+///
+/// Fixture-safe. Wrap / negative / non-finite → unavailable (never invent).
+pub fn sample_from_nvml_energy_mj(before_mj: f64, after_mj: f64, window_ms: u64) -> MeterSample {
+    if !before_mj.is_finite()
+        || !after_mj.is_finite()
+        || before_mj < 0.0
+        || after_mj < 0.0
+        || window_ms == 0
+    {
+        return MeterSample::unavailable(
+            window_ms,
+            "nvml energy: non-finite/negative mJ or zero window — measured_j=None",
+        );
+    }
+    if after_mj < before_mj {
+        return MeterSample::unavailable(
+            window_ms,
+            "nvml energy: counter wrapped or went backwards — measured_j=None",
+        );
+    }
+    let j = (after_mj - before_mj) / 1000.0;
+    if !j.is_finite() || j < 0.0 {
+        return MeterSample::unavailable(window_ms, "nvml energy: joule delta invalid — measured_j=None");
+    }
+    let components = vec![ComponentJoules {
+        component: MeterComponent::Package,
+        joules: Joules::new(j),
+        measure_source: MeasureSource::Nvml,
+    }];
+    finish_sample(
+        components,
+        MeasureSource::Nvml,
+        window_ms,
+        &format!("nvml energy.consumed delta_mJ={:.6}", after_mj - before_mj),
+    )
+}
+
+/// Parse `nvidia-smi` CSV (`--format=csv,noheader,nounits`). Fixture-safe.
+///
+/// Accepted shapes (one GPU per line):
+/// - `power.draw` watts only → integrate over `window_ms`
+/// - `power.draw, energy.consumed` → prefer energy mJ delta when two snapshots merge
+///   externally; a single snapshot with energy alone is not enough for a delta
+///
+/// Rejects utilization-style rows and non-numeric junk — never invent joules.
+pub fn parse_nvidia_smi_power_csv(text: &str, window_ms: u64) -> MeterSample {
+    let mut watts: Vec<f64> = Vec::new();
+    for raw in text.lines() {
+        let line = raw.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let lower = line.to_ascii_lowercase();
+        if lower.contains("util") || lower.contains('%') {
+            return MeterSample::unavailable(
+                window_ms,
+                "nvidia-smi csv: utilization/percent row — never invent measured_j from util%",
+            );
+        }
+        // Take first CSV field as watts (power.draw). Optional second = energy mJ (ignored
+        // in single-shot integrate path; live sampler uses paired snapshots for energy).
+        let first = line.split(',').next().unwrap_or("").trim();
+        // Strip leftover unit tokens if someone forgot nounits.
+        let token = first
+            .split_whitespace()
+            .next()
+            .unwrap_or("")
+            .trim_matches(|c: char| !c.is_ascii_digit() && c != '.' && c != '-' && c != '+');
+        if token.is_empty() {
+            continue;
+        }
+        let Ok(w) = token.parse::<f64>() else {
+            return MeterSample::unavailable(
+                window_ms,
+                format!("nvidia-smi csv: non-numeric power field {first:?} — measured_j=None"),
+            );
+        };
+        if !w.is_finite() || w < 0.0 {
+            return MeterSample::unavailable(
+                window_ms,
+                "nvidia-smi csv: non-finite/negative watts — measured_j=None",
+            );
+        }
+        watts.push(w);
+    }
+    if watts.is_empty() {
+        return MeterSample::unavailable(
+            window_ms,
+            "nvidia-smi csv: no power.draw rows — measured_j=None",
+        );
+    }
+    let avg = watts.iter().sum::<f64>() / watts.len() as f64;
+    sample_from_nvml_watts(avg, window_ms)
+}
+
+/// Live Tier-1 NVML behind `energy-meter` (CLI `nvidia-smi`, no libnvidia-ml link).
+#[cfg(feature = "energy-meter")]
+mod nvml_tier1 {
+    use super::*;
+    use std::path::{Path, PathBuf};
+    use std::process::Command;
+    use std::thread;
+    use std::time::{Duration, Instant};
+
+    fn find_nvidia_smi() -> Option<PathBuf> {
+        for p in [
+            "/usr/bin/nvidia-smi",
+            "/usr/local/bin/nvidia-smi",
+            "/usr/local/cuda/bin/nvidia-smi",
+        ] {
+            let path = Path::new(p);
+            if path.is_file() {
+                return Some(path.to_path_buf());
+            }
+        }
+        // PATH lookup without inventing numbers when missing.
+        let out = Command::new("which").arg("nvidia-smi").output().ok()?;
+        if !out.status.success() {
+            return None;
+        }
+        let s = String::from_utf8_lossy(&out.stdout).trim().to_string();
+        if s.is_empty() {
+            return None;
+        }
+        let path = PathBuf::from(s);
+        path.is_file().then_some(path)
+    }
+
+    fn query_csv(smi: &Path, query: &str) -> Result<String, String> {
+        let out = Command::new(smi)
+            .args([
+                "--query-gpu",
+                query,
+                "--format=csv,noheader,nounits",
+            ])
+            .output()
+            .map_err(|e| format!("nvidia-smi spawn failed: {e}"))?;
+        if !out.status.success() {
+            let err = String::from_utf8_lossy(&out.stderr);
+            return Err(format!(
+                "nvidia-smi exit {:?}: {}",
+                out.status.code(),
+                err.trim()
+            ));
+        }
+        Ok(String::from_utf8_lossy(&out.stdout).into_owned())
+    }
+
+    fn parse_energy_mj_rows(text: &str) -> Result<Vec<f64>, String> {
+        let mut vals = Vec::new();
+        for raw in text.lines() {
+            let line = raw.trim();
+            if line.is_empty() {
+                continue;
+            }
+            // energy.consumed alone, or power,energy → second field.
+            let fields: Vec<&str> = line.split(',').map(|s| s.trim()).collect();
+            let token = if fields.len() >= 2 {
+                fields[1]
+            } else {
+                fields[0]
+            };
+            let num = token
+                .split_whitespace()
+                .next()
+                .unwrap_or("")
+                .trim_matches(|c: char| !c.is_ascii_digit() && c != '.' && c != '-' && c != '+');
+            let v: f64 = num
+                .parse()
+                .map_err(|_| format!("bad energy mJ field {token:?}"))?;
+            if !v.is_finite() || v < 0.0 {
+                return Err("non-finite/negative energy mJ".into());
+            }
+            vals.push(v);
+        }
+        if vals.is_empty() {
+            return Err("no energy rows".into());
+        }
+        Ok(vals)
+    }
+
+    pub(super) fn probe() -> MeterCapability {
+        let Some(smi) = find_nvidia_smi() else {
+            return MeterCapability::unavailable(
+                "nvml",
+                "NVML / nvidia-smi not present; Tier-1 NVML measured_j stays None",
+            );
+        };
+        match query_csv(&smi, "power.draw") {
+            Ok(csv) => {
+                let sample = parse_nvidia_smi_power_csv(&csv, 1);
+                if sample.measured_j.is_some() && sample.honesty_ok() {
+                    MeterCapability {
+                        available: true,
+                        source: MeasureSource::Nvml,
+                        detail: format!(
+                            "nvidia-smi power.draw readable at {} (joules require a timed sample)",
+                            smi.display()
+                        ),
+                        platform: "nvml",
+                    }
+                } else {
+                    MeterCapability::unavailable(
+                        "nvml",
+                        format!(
+                            "nvidia-smi present but power.draw not a real number ({}) — measured_j=None",
+                            sample.detail
+                        ),
+                    )
+                }
+            }
+            Err(e) => MeterCapability::unavailable("nvml", format!("{e} — measured_j=None")),
+        }
+    }
+
+    pub(super) fn sample(window_ms: u64) -> MeterSample {
+        let Some(smi) = find_nvidia_smi() else {
+            return MeterSample::unavailable(
+                window_ms,
+                "NVML / nvidia-smi not present — measured_j=None",
+            );
+        };
+        if window_ms == 0 {
+            return MeterSample::unavailable(window_ms, "nvml: zero window — measured_j=None");
+        }
+
+        // Prefer energy.consumed counter delta when the driver exposes it.
+        let energy_query = "power.draw,energy.consumed";
+        if let (Ok(before_csv), Ok(_)) = (
+            query_csv(&smi, energy_query),
+            query_csv(&smi, "power.draw"), // warm / existence
+        ) {
+            if let Ok(before_e) = parse_energy_mj_rows(&before_csv) {
+                let start = Instant::now();
+                thread::sleep(Duration::from_millis(window_ms));
+                let elapsed_ms = start.elapsed().as_millis() as u64;
+                if let Ok(after_csv) = query_csv(&smi, energy_query) {
+                    if let Ok(after_e) = parse_energy_mj_rows(&after_csv) {
+                        if before_e.len() == after_e.len() {
+                            let mut total_mj = 0.0;
+                            let mut ok = true;
+                            for (b, a) in before_e.iter().zip(after_e.iter()) {
+                                if *a < *b {
+                                    ok = false;
+                                    break;
+                                }
+                                total_mj += *a - *b;
+                            }
+                            if ok {
+                                let s = sample_from_nvml_energy_mj(0.0, total_mj, elapsed_ms.max(1));
+                                if s.measured_j.is_some() && s.honesty_ok() {
+                                    return s;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Fallback: integrate power.draw over the window (two snapshots, mean watts).
+        let before = match query_csv(&smi, "power.draw") {
+            Ok(c) => c,
+            Err(e) => return MeterSample::unavailable(window_ms, format!("{e} — measured_j=None")),
+        };
+        let start = Instant::now();
+        thread::sleep(Duration::from_millis(window_ms));
+        let after = match query_csv(&smi, "power.draw") {
+            Ok(c) => c,
+            Err(e) => return MeterSample::unavailable(window_ms, format!("{e} — measured_j=None")),
+        };
+        let elapsed_ms = start.elapsed().as_millis() as u64;
+        let s0 = parse_nvidia_smi_power_csv(&before, elapsed_ms.max(1));
+        let s1 = parse_nvidia_smi_power_csv(&after, elapsed_ms.max(1));
+        match (s0.measured_j, s1.measured_j) {
+            (Some(j0), Some(j1)) => {
+                // Each parse already did watts×window; recover mean watts from either
+                // snapshot and re-integrate over actual elapsed.
+                // measured_j from parse = avg_watts * (elapsed_ms/1000); invert carefully.
+                let sec = (elapsed_ms.max(1) as f64) / 1000.0;
+                if sec <= 0.0 {
+                    return MeterSample::unavailable(window_ms, "nvml: elapsed sec invalid");
+                }
+                let w0 = j0.0 / sec;
+                let w1 = j1.0 / sec;
+                let avg_w = (w0 + w1) / 2.0;
+                sample_from_nvml_watts(avg_w, elapsed_ms.max(1))
+            }
+            _ => {
+                if s0.measured_j.is_none() {
+                    s0
+                } else {
+                    s1
+                }
+            }
+        }
+    }
+}
+
+#[cfg(not(feature = "energy-meter"))]
+mod nvml_tier1 {
+    use super::*;
+
+    pub(super) fn probe() -> MeterCapability {
+        MeterCapability::unavailable(
+            "nvml",
+            "energy-meter feature off — Tier-1 NVML measured_j stays None",
+        )
+    }
+
+    #[allow(dead_code)]
+    pub(super) fn sample(window_ms: u64) -> MeterSample {
+        MeterSample::unavailable(window_ms, "energy-meter feature off — NVML measured_j=None")
+    }
 }
