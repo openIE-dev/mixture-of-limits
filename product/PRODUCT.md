@@ -29,6 +29,8 @@ Laya collapses generation cost when the option set is known ([laya-ai.com/system
 
 Cited already in OpenIE research triad (NI + Satiation papers): System One = typed proposers (Laya / Jev class); WCA decides whether the machine may move.
 
+**Ecosystem note (2026):** TypeSafe **Jev** and open System One peers (Laya, Decider, SemIf, Nimble, Winnow, Plumb, …) are measured for decision/classification accuracy by [Jev Arena](https://github.com/theaiautomators/jev-arena), [JevBench](https://github.com/fstandhartinger/jevbench), and [DecisionBench](https://huggingface.co/spaces/Hanno-Labs/decision-bench-leaderboard). Mixture of Limits does not compete on those axes. It keeps Lookup → Formula → Solver first, VoI/satiation refuse, NI certify, and `estimated_j` / J·query honesty — and treats those models as the residual **Model LAST** leaf when floors do not close. See [COMPETITIVE.md](./COMPETITIVE.md) and [ARENA.md](./ARENA.md).
+
 ## Value prop (one sentence)
 
 **Mixture of Limits product** is the operator surface that runs Lookup → Formula → Solver → Model LAST under named floors, commits only with an NI certificate, stamps honest joule receipts (`estimated_j` always; `measured_j` only when a meter is present), and refuses further synthesis when `C(z)=1`.
@@ -46,7 +48,7 @@ Cited already in OpenIE research triad (NI + Satiation papers): System One = typ
 - Not a journal paper rewrite; not more diagnosis of MoE.
 - Not claiming shipped board / FPGA package energy (`board_synth_claimed=false` on soft-ref).
 - Not inventing `measured_j` from catalog Landauer or OpCounter estimates.
-- Not replacing Laya System One for closed typed menus.
+- Not replacing Laya / Jev / System One proposers for closed typed menus (nor inventing Arena/JevBench scores).
 - Live WCA **MCP network** / Ferric robot EFA / klere-vm FPGA Stage C package meters remain out of soft-ref prove (in-crate NI certify + Stage C unmetered **are** in prove).
 - Full Periodic Stack 258 live catalog still residual (subset navigator in prove).
 - Not a new consumer brand name without explicit approval (see name table).

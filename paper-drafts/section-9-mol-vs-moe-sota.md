@@ -57,3 +57,10 @@ From PLAN prove (see §6):
 | Claiming MoL wins tokens/J vs HCSpec | Claiming MoL can refuse before tokens |
 
 Field SOTA above remains **model↔model**. MoL’s contribution is not a better router among generators: it is the navigation law that embodies known information/energy floors, with a prove harness that keeps Model last and refuse first-class.
+
+### 9.5 System One / Jev Arena class (residual Model LAST — not MoE)
+
+Field **System One** proposers (TypeSafe Jev; open peers such as Laya, Decider, SemIf, Nimble, Winnow, Plumb) return typed distributions over **known option sets**. Independent labs ([Jev Arena](https://github.com/theaiautomators/jev-arena), [JevBench](https://github.com/fstandhartinger/jevbench), [DecisionBench](https://huggingface.co/spaces/Hanno-Labs/decision-bench-leaderboard)) measure decision/classification accuracy, calibration, speed, and cost on structured tasks. That class is **orthogonal** to the MoE / model↔model table above: those systems optimize which neural generator runs; System One optimizes typed menu decisions; Mixture of Limits asks whether any generator should run at all.
+
+**Mixture of Limits reading:** System One models are lawful **Model LAST** residual proposers when Lookup → Formula → Solver do not close. They do not own VoI refuse, satiation `C(z)=1`, NI certify-before-commit, or `estimated_j` / J·query receipts. Product competitive map: `product/COMPETITIVE.md` and `product/ARENA.md`. Do not import Arena/JevBench scores as Mixture of Limits wins; living NI/Satiation papers already name System One = typed proposers (Laya / Jev class).
+

@@ -38,3 +38,16 @@ No Laya source code under openIE-dev; citations are product-page / preprint refe
 ## Decision
 
 Wire product docs into the **Desktop clean-room** (`product/` mirror) and own the git package under **vibe-coding/mixture-of-limits-product**. Do not orphan docs: CLI stubs target Rust `mol-cli`.
+
+## Jev Arena / System One measurement ecosystem (product competitive)
+
+| Resource | Role |
+|---|---|
+| https://github.com/theaiautomators/jev-arena | Local decision-model lab (accuracy, speed, memory, workflow replay) |
+| https://github.com/fstandhartinger/jevbench | Independent Jev-class typed-decision benchmark |
+| https://benchmarkheaven.com/jev-models | Live JevBench board |
+| https://huggingface.co/spaces/Hanno-Labs/decision-bench-leaderboard | DecisionBench leaderboard |
+| https://typesafe.ai/ · https://docs.typesafe.ai/models | Hosted Jev System One API |
+| Models (residual leaf class) | EldanRing/Winnow-12B, Mapika/decider-4b, convaiinnovations/laya, TheoLeeCJ/SemIf-OpenJev, bespokelabs/Bespoke-Nimble-9B, Contrastive-LM/CLM-v0.1-8B, crh225/plumb-4b, Qwen/Qwen3.5-4B, MoritzLaurer/ModernBERT-large-zeroshot-v2.0 |
+
+Product positioning: [COMPETITIVE.md](../COMPETITIVE.md), [ARENA.md](../ARENA.md). Do not invent Arena scores as Mixture of Limits wins.
