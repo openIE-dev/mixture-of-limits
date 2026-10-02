@@ -180,7 +180,7 @@ Implemented as:
 | **0** | Standalone law: types, cascade demo, limits router, CLI, receipts | **Shipped** |
 | **1** | Adapters: trait ports + feature flags; document field mapping to leapfrog/WCA/JouleDB/EFA/Klere | **Software-reference stubs** (openie offline map, WCA/EFA certify, Klere settle); live path-deps deferred |
 | **2** | Live WCA/NI HTTP\|MCP certify (env-gated, default off) + in-crate fallback | **Wired** (`HttpNiCertify` / `certify_live_prefer_env`); System One pre-gate still residual |
-| **3** | Periodic-stack navigator (258/33): primitive_gap probe, μ calib optional | **Live catalog shipped** (33 families; ~89 Present with ≥80 real Lookup/Formula/Solver/Navigate gears + Gaps; scale vs 258 honest). Remaining ~168/258 + μ calib still residual |
+| **3** | Periodic-stack navigator (258/33): primitive_gap probe, μ calib optional | **Live catalog shipped** (33 families; ~130 Present with ≥120 real Lookup/Formula/Solver/Navigate gears + Gaps; scale vs 258 honest). Remaining ~128/258 + μ calib still residual |
 
 ---
 
@@ -274,5 +274,5 @@ cargo run -p mol-cli -- prove
 
 Criteria (all must print `VERIFIED`): deterministic close; formula/lookup without model (incl. Shannon/Nyquist/eV cascade); VoI refuse when `!allow_model`; settle commit + settle refuse; certificate refuse on diverge tag; capability default-deny mutate; receipt honesty (`measured_j=None`, `board_synth_claimed=false`, estimate labeled, `mu_source=catalog`); `ModelGenerated` cannot coerce to `Deterministic`; **Periodic Stack subset navigation**; **primitive_gap registry probe refuse**; **μ / impedance catalog** (`E≈θ·μ`); **receipt transcript replay** without model; **bitemporal memory**; **agent mailbox**; **fabric_routing** (Lookup/Formula→Cpu; Settle→ThermoSettle|Cpu; Model→Gpu*|refuse). Proven path is self-contained (no sibling path-deps on openie-leapfrog / jouledb / wca-lut-edge / Ferric).
 
-**Still stub / not live (OUT OF PROOF SCOPE):** leapfrog runtime ask, **Ferric / on-device EFA hardware certificate**, **FPGA Stage C / wca-lut-edge in-proc + board meter** (`stage_c_measured=false`), klere-vm WASM/FPGA meter, System One pre-gate, remaining ~168/258 thesis primitives + μ calib. **Live NI/WCA HTTP|MCP certify is wired** (env-gated; in-crate fallback; see [`docs/live-ni-wca-certify.md`](./docs/live-ni-wca-certify.md)).
+**Still stub / not live (OUT OF PROOF SCOPE):** leapfrog runtime ask, **Ferric / on-device EFA hardware certificate**, **FPGA Stage C / wca-lut-edge in-proc + board meter** (`stage_c_measured=false`), klere-vm WASM/FPGA meter, System One pre-gate, remaining ~128/258 thesis primitives + μ calib. **Live NI/WCA HTTP|MCP certify is wired** (env-gated; in-crate fallback; see [`docs/live-ni-wca-certify.md`](./docs/live-ni-wca-certify.md)).
 

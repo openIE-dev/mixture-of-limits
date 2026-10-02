@@ -34,7 +34,7 @@ Default close path for all proven claims: **Unmetered** (+ **Estimated** where �
 | P7 | Capability default-deny mutate | `claim.mol.capability_deny_mutate` | `AutomateGate::default().gate(Mutate)` → Refuse. | — | Unmetered |
 | P8 | Receipt honesty | `claim.mol.receipt_honesty` | Software-ref: `measured_j=None`, `board_synth_claimed=false`, estimate labeled (`EstimateKind`). | Live RAPL/NVML default close OUT OF SCOPE | Unmetered / Estimated |
 | P9 | `ModelGenerated` ↛ `Deterministic` | `claim.mol.replay_no_strengthen` | `TypedAnswer::weaken_to` returns `ReplayCoercion`. | — | — |
-| P10 | Periodic Stack live catalog navigation | `claim.mol.stack_live_catalog` | Family + present + scale → COMMIT at Lookup; ≥80 live Lookup/Formula/Solver gears; note cites 258/33 honesty. | Remaining ~168/258 thesis primitives OUT OF SCOPE | Unmetered |
+| P10 | Periodic Stack live catalog navigation | `claim.mol.stack_live_catalog` | Family + present + scale → COMMIT at Lookup; ≥120 live Lookup/Formula/Solver gears; note cites 258/33 honesty. | Remaining ~128/258 thesis primitives OUT OF SCOPE | Unmetered |
 | P11 | `primitive_gap` via registry probe | `claim.mol.primitive_gap` | Gap marker `physical_settle` + absent name → REFUSE `primitive_gap` (not string-only). | — | Unmetered |
 | P12 | μ / impedance catalog | `claim.mol.mu_catalog` | Receipts stamp `mu_source=catalog`, `mu`, `landauer_floor_ratio`; `E≈θ·μ` (not fake RAPL). | μ **calib corpus** OUT OF SCOPE | Estimated |
 | P13 | Receipt transcript replay | `claim.mol.receipt_replay` | JSONL/in-memory replay reproduces commit/refuse + limit id; model never answered. | — | Unmetered |
@@ -64,7 +64,7 @@ These are PLAN §6 residuals. Citing them is allowed as roadmap / reference sema
 | klere-vm WASM / FPGA meter (real pJ) | Software-ref `StubKlereSettle` | P5 |
 | Live `openie-path` / leapfrog ask bridge | Adapter port | — |
 | Live WCA/`wca-lut-edge` **in-proc** + FPGA Stage C meter | Adapter residual (HTTP\|MCP NI certify **shipped**, env-gated) | Ferric/FPGA stub |
-| Remaining ~168/258 Periodic Stack thesis primitives + μ calib corpus | Live catalog (≥80 gears) + Gap + tier μ catalog are in proof | P10, P12 |
+| Remaining ~128/258 Periodic Stack thesis primitives + μ calib corpus | Live catalog (≥120 gears) + Gap + tier μ catalog are in proof | P10, P12 |
 | Trained weights / candle / tract Model leaf | Model stays demoted stub | P3, P4, P16 |
 
 ### 6.4 Seeded knowledge claims (Z2 corpus; not the prove map)

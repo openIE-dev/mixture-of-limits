@@ -1,9 +1,9 @@
 //! Periodic Stack subset navigator (clean-room, in-tree).
 //!
 //! Thesis table (compute.openie.dev): **258 primitives / 33 families**.
-//! This module ships a **compact subset**: all 33 family names + representative
-//! primitives (Present cells MoL can name) and explicit **Gap** markers for
-//! empty cells (e.g. `physical_settle`). It does **not** claim full 258 coverage
+//! This module ships a **growing live catalog**: all 33 family names + Present
+//! cells with real Lookup/Formula/Solver/Navigate gears (not placeholders) and
+//! explicit **Gap** markers for empty cells (e.g. `physical_settle`). It does **not** claim full 258 coverage
 //! and does not invent silicon/RAPL measurements — OOM joule fields are catalog
 //! surrogates only (`estimated`, never `measured_j`).
 //!
@@ -773,6 +773,46 @@ const SUBSET_CELLS: &[StackPrimitive] = &[
     cell!(88, "matmul_2x2", LinearAlgebra, L1, Present, Solver, 1e-9, "2×2 matrix multiply (Solver)"),
     cell!(89, "det_2x2", LinearAlgebra, L0, Present, Formula, 5e-12, "2×2 determinant (Formula)"),
     cell!(90, "lerp", Arithmetic, L0, Present, Formula, 5e-12, "Linear interpolate (1-t)a + t b (Formula)"),
+    cell!(91, "str_lower", StringMorph, L0, Present, Lookup, 5e-11, "ASCII lowercase (Lookup)"),
+    cell!(92, "str_trim", StringMorph, L0, Present, Lookup, 5e-11, "Trim ASCII whitespace (Lookup)"),
+    cell!(93, "str_contains", StringMorph, L0, Present, Lookup, 5e-11, "Substring contains (Lookup)"),
+    cell!(94, "popcount", Logic, L0, Present, Lookup, 1e-12, "Population count of u64 (Lookup)"),
+    cell!(95, "parity_even", Logic, L0, Present, Lookup, 1e-12, "Even parity of u64 (Lookup)"),
+    cell!(96, "hex_encode", Encode, L0, Present, Lookup, 5e-11, "Bytes/ASCII → hex (Lookup)"),
+    cell!(97, "mime_from_ext", Lookup, L0, Present, Lookup, 1e-12, "Extension → MIME LUT (Lookup)"),
+    cell!(98, "http_status_phrase", Lookup, L0, Present, Lookup, 1e-12, "HTTP status → phrase (Lookup)"),
+    cell!(99, "is_ascii", ParseTransform, L0, Present, Lookup, 5e-12, "All-ASCII predicate (Lookup)"),
+    cell!(100, "crc8", HashDigest, L0, Present, Lookup, 5e-11, "CRC-8/ATM soft-ref (Lookup)"),
+    cell!(101, "weekday_name", Temporal, L0, Present, Lookup, 5e-12, "Dow 0..6 → weekday name (Lookup)"),
+    cell!(102, "bytes_to_kib", UnitConvert, L0, Present, Lookup, 5e-12, "Bytes ↔ KiB (Lookup)"),
+    cell!(103, "bool_nand", Logic, L0, Present, Lookup, 1e-12, "Boolean NAND (Lookup)"),
+    cell!(104, "csv_field", Encode, L0, Present, Lookup, 5e-11, "CSV field quote/escape (Lookup)"),
+    cell!(105, "area_circle", Geometry, L0, Present, Formula, 5e-12, "A = π r² (Formula)"),
+    cell!(106, "circumference", Geometry, L0, Present, Formula, 5e-12, "C = 2 π r (Formula)"),
+    cell!(107, "volume_sphere", Geometry, L0, Present, Formula, 5e-12, "V = 4/3 π r³ (Formula)"),
+    cell!(108, "heron_area", Geometry, L0, Present, Formula, 1e-11, "Heron triangle area (Formula)"),
+    cell!(109, "quadratic_roots", Arithmetic, L0, Present, Formula, 1e-11, "Roots of ax²+bx+c (Formula)"),
+    cell!(110, "softplus", Probabilistic, L0, Present, Formula, 5e-12, "softplus(x)=ln(1+e^x) (Formula)"),
+    cell!(111, "percent_change", Arithmetic, L0, Present, Formula, 5e-12, "100·(new-old)/old (Formula)"),
+    cell!(112, "capacitor_energy", Arithmetic, L0, Present, Formula, 5e-12, "E = ½ C V² (Formula)"),
+    cell!(113, "freefall_distance", Arithmetic, L0, Present, Formula, 5e-12, "d = ½ g t² (Formula)"),
+    cell!(114, "geometric_mean", Statistics, L0, Present, Formula, 1e-11, "Geometric mean of positives (Formula)"),
+    cell!(115, "harmonic_mean", Statistics, L0, Present, Formula, 1e-11, "Harmonic mean of positives (Formula)"),
+    cell!(116, "beer_lambert", Signal, L0, Present, Formula, 5e-12, "A = ε · c · l (Formula)"),
+    cell!(117, "snell_law", Geometry, L0, Present, Formula, 5e-12, "n1 sin θ1 = n2 sin θ2 (Formula)"),
+    cell!(118, "mode_f64", Statistics, L1, Present, Solver, 1e-10, "Mode of multiset (Solver)"),
+    cell!(119, "range_f64", Statistics, L0, Present, Solver, 5e-12, "max-min range (Solver)"),
+    cell!(120, "l1_norm", LinearAlgebra, L0, Present, Solver, 5e-12, "L1 / Manhattan norm (Solver)"),
+    cell!(121, "l2_norm", LinearAlgebra, L0, Present, Solver, 5e-12, "L2 / Euclidean norm (Solver)"),
+    cell!(122, "cosine_sim", LinearAlgebra, L0, Present, Solver, 1e-11, "Cosine similarity (Solver)"),
+    cell!(123, "transpose_2x2", LinearAlgebra, L0, Present, Solver, 5e-12, "2×2 transpose (Solver)"),
+    cell!(124, "trace_2x2", LinearAlgebra, L0, Present, Solver, 5e-12, "2×2 trace (Solver)"),
+    cell!(125, "fibonacci_u64", Arithmetic, L0, Present, Solver, 5e-12, "Fibonacci F(n) n≤92 (Solver)"),
+    cell!(126, "is_prime_u64", Arithmetic, L0, Present, Solver, 5e-11, "Primality test u64 (Solver)"),
+    cell!(127, "is_sorted", SortSearch, L0, Present, Solver, 5e-11, "Nondecreasing check (Solver)"),
+    cell!(128, "unique_count", SortSearch, L1, Present, Solver, 1e-10, "Distinct element count (Solver)"),
+    cell!(129, "paren_balance", ParseTransform, L0, Present, Solver, 5e-11, "Parenthesis balance check (Solver)"),
+    cell!(130, "lcp_strings", StringMorph, L1, Present, Solver, 1e-10, "Longest common prefix (Solver)"),
     cell!(200, "physical_settle", Optimization, L1, Gap, None, 0.0, "Reserved QI/thermo settle-certify cell — not wired as silicon"),
     cell!(201, "reversible_rewrite", Arithmetic, L0, Gap, None, 0.0, "Reversible / adiabatic rewrite primitive — empty cell"),
     cell!(202, "ising_bind", Optimization, L1, Gap, None, 0.0, "Energy-function / Ising bind — empty cell"),
@@ -791,10 +831,10 @@ mod tests {
     #[test]
     fn live_catalog_honesty() {
         let s = PeriodicStack::subset();
-        assert!(s.live_gear_count() >= 80, "live gears={}", s.live_gear_count());
-        assert!(s.live_gear_count_of(GearKind::Lookup) >= 25);
-        assert!(s.live_gear_count_of(GearKind::Formula) >= 20);
-        assert!(s.live_gear_count_of(GearKind::Solver) >= 20);
+        assert!(s.live_gear_count() >= 120, "live gears={}", s.live_gear_count());
+        assert!(s.live_gear_count_of(GearKind::Lookup) >= 40);
+        assert!(s.live_gear_count_of(GearKind::Formula) >= 35);
+        assert!(s.live_gear_count_of(GearKind::Solver) >= 35);
         assert!(s.placeholder_present_count() <= 5, "few placeholders only");
         assert!(s.gap_count() >= 5);
         assert!(s.scale_note().contains("live catalog"));
@@ -822,10 +862,10 @@ mod tests {
         let s = PeriodicStack::subset();
         assert_eq!(FULL_TARGET_PRIMITIVES, 258);
         assert_eq!(FULL_TARGET_FAMILIES, 33);
-        assert!(s.present_count() >= 80, "expanded live present={}", s.present_count());
-        assert!(s.live_gear_count() >= 80);
+        assert!(s.present_count() >= 120, "expanded live present={}", s.present_count());
+        assert!(s.live_gear_count() >= 120);
         assert!(s.gap_count() >= 4);
-        assert!(s.remaining_to_full() > 150, "remain={}", s.remaining_to_full());
+        assert!(s.remaining_to_full() > 100, "remain={}", s.remaining_to_full());
         assert!(s.scale_note().contains("258"));
     }
 

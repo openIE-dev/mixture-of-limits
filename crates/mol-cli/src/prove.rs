@@ -211,7 +211,7 @@ pub fn run_prove() -> bool {
         let failed = results.iter().filter(|c| !c.ok).count();
         println!("PROVE RESULT: FAILED ({failed}/{})", results.len());
     }
-    println!("OUT OF PROOF SCOPE: Ferric/MuJoCo robot EFA hardware, FPGA Stage C / wca-lut-edge in-proc + board meters (stage_c_measured=false), klere-vm package meters, System One pre-gate, remaining ~168 of 258 thesis primitives (live catalog in proof), live nvidia-smi on hosts without NVIDIA (feature energy-meter still honest-unavailable). Live NI/WCA HTTP|MCP certify is in-tree (env-gated; in-crate fallback).");
+    println!("OUT OF PROOF SCOPE: Ferric/MuJoCo robot EFA hardware, FPGA Stage C / wca-lut-edge in-proc + board meters (stage_c_measured=false), klere-vm package meters, System One pre-gate, remaining ~128 of 258 thesis primitives (live catalog in proof), live nvidia-smi on hosts without NVIDIA (feature energy-meter still honest-unavailable). Live NI/WCA HTTP|MCP certify is in-tree (env-gated; in-crate fallback).");
     println!("IN PROOF (product gaps): live NI cert ids (in-crate + HTTP|MCP prefer_env fallback), Residual Model LAST, durable EpisodeStore C(z), mol bench Estimated|Metered, mol arena head-on, phase1 rule AST, distill v1, Tier-1 RAPL/NVML/macOS-SMC meter honesty + Tier-2 StubShuntHal");
     all_ok
 }
@@ -470,7 +470,7 @@ fn criterion_replay_coercion() -> Criterion {
 fn criterion_live_catalog_gears(mol: &MixtureOfLimits) -> Criterion {
     let name = "live_catalog_gears";
     let stack = PeriodicStack::subset();
-    if stack.live_gear_count() < 80 {
+    if stack.live_gear_count() < 120 {
         return Criterion::fail(name, format!("live_gear_count={}", stack.live_gear_count()));
     }
     // Sample live closes at the declared gear (not placeholders).
@@ -481,6 +481,10 @@ fn criterion_live_catalog_gears(mol: &MixtureOfLimits) -> Criterion {
         ("ohms_law i=2 r=5", CascadeTier::Formula, "ohms"),
         ("edit_distance a=kitten b=sitting", CascadeTier::Solver, "edit"),
         ("gcd_u64 a=48 b=18", CascadeTier::Solver, "gcd"),
+        ("area_circle r=2", CascadeTier::Formula, "area_circle"),
+        ("popcount x=15", CascadeTier::Lookup, "popcount"),
+        ("is_prime_u64 n=17", CascadeTier::Solver, "is_prime"),
+        ("cosine_sim a=[1,0] b=[1,0]", CascadeTier::Solver, "cosine"),
     ];
     for (q, expect_tier, needle) in samples {
         let out = match close(mol, q, Budget::coin_cell()) {
@@ -532,7 +536,7 @@ fn criterion_live_catalog_gears(mol: &MixtureOfLimits) -> Criterion {
 fn criterion_stack_navigation(mol: &MixtureOfLimits) -> Criterion {
     let name = "stack_navigation";
     let stack = PeriodicStack::subset();
-    if stack.present_count() < 80 || stack.gap_count() < 5 {
+    if stack.present_count() < 120 || stack.gap_count() < 5 {
         return Criterion::fail(
             name,
             format!(
@@ -543,7 +547,7 @@ fn criterion_stack_navigation(mol: &MixtureOfLimits) -> Criterion {
             ),
         );
     }
-    if stack.live_gear_count() < 80 {
+    if stack.live_gear_count() < 120 {
         return Criterion::fail(
             name,
             format!(
