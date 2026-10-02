@@ -122,10 +122,36 @@ fn list_str(q: &str, key: &str) -> Option<Vec<String>> {
 fn mentions(q: &str, name: &str) -> bool {
     let q = q.to_ascii_lowercase();
     let n = name.to_ascii_lowercase();
-    q.contains(&n)
-        || q.contains(&format!("primitive {n}"))
-        || q.contains(&format!("catalog {n}"))
-        || q.contains(&format!("stack {n}"))
+    // Whole-token match so sum_f64 does not steal cumsum_f64 (etc.).
+    let token_hit = |hay: &str, needle: &str| -> bool {
+        let bytes = hay.as_bytes();
+        let nb = needle.as_bytes();
+        let mut start = 0usize;
+        while let Some(rel) = hay[start..].find(needle) {
+            let i = start + rel;
+            let before_ok = i == 0 || {
+                let b = bytes[i - 1];
+                !b.is_ascii_alphanumeric() && b != b'_'
+            };
+            let after = i + nb.len();
+            let after_ok = after >= bytes.len() || {
+                let b = bytes[after];
+                !b.is_ascii_alphanumeric() && b != b'_'
+            };
+            if before_ok && after_ok {
+                return true;
+            }
+            start = i + 1;
+            if start >= hay.len() {
+                break;
+            }
+        }
+        false
+    };
+    token_hit(&q, &n)
+        || token_hit(&q, &format!("primitive {n}"))
+        || token_hit(&q, &format!("catalog {n}"))
+        || token_hit(&q, &format!("stack {n}"))
 }
 
 fn tag(name: &str, gear: &str, body: String) -> String {
@@ -153,6 +179,69 @@ fn sha256_hex(s: &str) -> String {
     // Minimal SHA-256 (public domain style) — enough for soft-ref catalog.
     sha256::digest(s.as_bytes())
 }
+
+
+fn b64_encode(s: &str) -> String {
+    const T: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let bytes = s.as_bytes();
+    let mut out = String::new();
+    let mut i = 0;
+    while i < bytes.len() {
+        let b0 = bytes[i] as u32;
+        let b1 = if i + 1 < bytes.len() { bytes[i + 1] as u32 } else { 0 };
+        let b2 = if i + 2 < bytes.len() { bytes[i + 2] as u32 } else { 0 };
+        let triple = (b0 << 16) | (b1 << 8) | b2;
+        out.push(T[((triple >> 18) & 63) as usize] as char);
+        out.push(T[((triple >> 12) & 63) as usize] as char);
+        if i + 1 < bytes.len() {
+            out.push(T[((triple >> 6) & 63) as usize] as char);
+        } else {
+            out.push('=');
+        }
+        if i + 2 < bytes.len() {
+            out.push(T[(triple & 63) as usize] as char);
+        } else {
+            out.push('=');
+        }
+        i += 3;
+    }
+    out
+}
+
+fn b64_decode(s: &str) -> Option<String> {
+    fn val(c: u8) -> Option<u8> {
+        Some(match c {
+            b'A'..=b'Z' => c - b'A',
+            b'a'..=b'z' => c - b'a' + 26,
+            b'0'..=b'9' => c - b'0' + 52,
+            b'+' => 62,
+            b'/' => 63,
+            _ => return None,
+        })
+    }
+    let clean: Vec<u8> = s.bytes().filter(|b| !b.is_ascii_whitespace()).collect();
+    if clean.len() % 4 != 0 {
+        return None;
+    }
+    let mut out = Vec::new();
+    for chunk in clean.chunks(4) {
+        let (c0, c1, c2, c3) = (chunk[0], chunk[1], chunk[2], chunk[3]);
+        let v0 = val(c0)?;
+        let v1 = val(c1)?;
+        let v2 = if c2 == b'=' { 0 } else { val(c2)? };
+        let v3 = if c3 == b'=' { 0 } else { val(c3)? };
+        let triple = ((v0 as u32) << 18) | ((v1 as u32) << 12) | ((v2 as u32) << 6) | (v3 as u32);
+        out.push(((triple >> 16) & 255) as u8);
+        if c2 != b'=' {
+            out.push(((triple >> 8) & 255) as u8);
+        }
+        if c3 != b'=' {
+            out.push((triple & 255) as u8);
+        }
+    }
+    String::from_utf8(out).ok()
+}
+
 
 mod sha256 {
     // Compact SHA-256 for catalog Lookup (no extra crate dep).
@@ -652,6 +741,168 @@ impl CatalogFormula {
             }
             return Some(tag("binomial_coeff", "formula", format!("binomial_coeff: C({n},{k})={c}")));
         }
+
+        if try_name("sqrt_f64") {
+            let x = param(&q, "x").or_else(|| param(&q, "a"))?;
+            if x < 0.0 { return Some(tag("sqrt_f64", "formula", "sqrt_f64: refuse x<0".into())); }
+            return Some(tag("sqrt_f64", "formula", format!("sqrt_f64: √{x}={}", x.sqrt())));
+        }
+        if try_name("ln_f64") {
+            let x = param(&q, "x").or_else(|| param(&q, "a"))?;
+            if x <= 0.0 { return Some(tag("ln_f64", "formula", "ln_f64: refuse x≤0".into())); }
+            return Some(tag("ln_f64", "formula", format!("ln_f64: ln({x})={}", x.ln())));
+        }
+        if try_name("sin_f64") {
+            let x = param(&q, "x").or_else(|| param(&q, "a"))?;
+            return Some(tag("sin_f64", "formula", format!("sin_f64: sin({x})={}", x.sin())));
+        }
+        if try_name("cos_f64") {
+            let x = param(&q, "x").or_else(|| param(&q, "a"))?;
+            return Some(tag("cos_f64", "formula", format!("cos_f64: cos({x})={}", x.cos())));
+        }
+        if try_name("tan_f64") {
+            let x = param(&q, "x").or_else(|| param(&q, "a"))?;
+            return Some(tag("tan_f64", "formula", format!("tan_f64: tan({x})={}", x.tan())));
+        }
+        if try_name("hypot_f64") {
+            let a = param(&q, "a").or_else(|| param(&q, "x"))?;
+            let b = param(&q, "b").or_else(|| param(&q, "y"))?;
+            return Some(tag("hypot_f64", "formula", format!("hypot_f64: √({a}²+{b}²)={}", a.hypot(b))));
+        }
+        if try_name("volume_cone") {
+            let r = param(&q, "r").or_else(|| param(&q, "radius"))?;
+            let h = param(&q, "h").or_else(|| param(&q, "height"))?;
+            let v = std::f64::consts::PI * r * r * h / 3.0;
+            return Some(tag("volume_cone", "formula", format!("volume_cone: V=⅓πr²h={v}")));
+        }
+        if try_name("area_trapezoid") {
+            let a = param(&q, "a").or_else(|| param(&q, "base1"))?;
+            let b = param(&q, "b").or_else(|| param(&q, "base2"))?;
+            let h = param(&q, "h").or_else(|| param(&q, "height"))?;
+            return Some(tag("area_trapezoid", "formula", format!("area_trapezoid: A=½({a}+{b})·{h}={}", 0.5 * (a + b) * h)));
+        }
+        if try_name("hookes_law") {
+            let k = param(&q, "k").or_else(|| param(&q, "spring"))?;
+            let x = param(&q, "x").or_else(|| param(&q, "disp"))?;
+            return Some(tag("hookes_law", "formula", format!("hookes_law: F=-k·x=-{k}·{x}={}", -k * x)));
+        }
+        if try_name("work_force_dist") {
+            let f = param(&q, "f").or_else(|| param(&q, "force"))?;
+            let d = param(&q, "d").or_else(|| param(&q, "dist")).or_else(|| param(&q, "distance"))?;
+            return Some(tag("work_force_dist", "formula", format!("work_force_dist: W=F·d={f}·{d}={}", f * d)));
+        }
+        if try_name("power_energy_time") {
+            let e = param(&q, "e").or_else(|| param(&q, "energy"))?;
+            let t = param(&q, "t").or_else(|| param(&q, "time"))?;
+            if t == 0.0 { return Some(tag("power_energy_time", "formula", "power_energy_time: refuse t=0".into())); }
+            return Some(tag("power_energy_time", "formula", format!("power_energy_time: P=E/t={e}/{t}={}", e / t)));
+        }
+        if try_name("density_mass_vol") {
+            let m = param(&q, "m").or_else(|| param(&q, "mass"))?;
+            let v = param(&q, "v").or_else(|| param(&q, "volume"))?;
+            if v == 0.0 { return None; }
+            return Some(tag("density_mass_vol", "formula", format!("density_mass_vol: ρ=m/V={m}/{v}={}", m / v)));
+        }
+        if try_name("pressure_force_area") {
+            let f = param(&q, "f").or_else(|| param(&q, "force"))?;
+            let a = param(&q, "a").or_else(|| param(&q, "area"))?;
+            if a == 0.0 { return None; }
+            return Some(tag("pressure_force_area", "formula", format!("pressure_force_area: P=F/A={f}/{a}={}", f / a)));
+        }
+        if try_name("gravitational_force") {
+            const G: f64 = 6.67430e-11;
+            let m1 = param(&q, "m1")?;
+            let m2 = param(&q, "m2")?;
+            let r = param(&q, "r")?;
+            if r == 0.0 { return None; }
+            let f = G * m1 * m2 / (r * r);
+            return Some(tag("gravitational_force", "formula", format!("gravitational_force: F=G·m1·m2/r²={f}")));
+        }
+        if try_name("stefan_boltzmann") {
+            const SIGMA: f64 = 5.670374419e-8;
+            let t = param(&q, "t").or_else(|| param(&q, "temp")).or_else(|| param(&q, "kelvin"))?;
+            let j = SIGMA * t.powi(4);
+            return Some(tag("stefan_boltzmann", "formula", format!("stefan_boltzmann: j=σT⁴={j}")));
+        }
+        if try_name("arrhenius") {
+            const R: f64 = 8.314462618;
+            let a = param(&q, "a").or_else(|| param(&q, "A"))?;
+            let ea = param(&q, "ea").or_else(|| param(&q, "Ea"))?;
+            let t = param(&q, "t").or_else(|| param(&q, "temp"))?;
+            if t <= 0.0 { return None; }
+            let k = a * (-ea / (R * t)).exp();
+            return Some(tag("arrhenius", "formula", format!("arrhenius: k=A·exp(-Ea/RT)={k}")));
+        }
+        if try_name("half_life") {
+            let n0 = param(&q, "n0").or_else(|| param(&q, "n_zero")).unwrap_or(1.0);
+            let t = param(&q, "t").or_else(|| param(&q, "time"))?;
+            let th = param(&q, "half").or_else(|| param(&q, "t_half")).or_else(|| param(&q, "thalf"))?;
+            if th <= 0.0 { return None; }
+            let n = n0 * 0.5_f64.powf(t / th);
+            return Some(tag("half_life", "formula", format!("half_life: N={n0}·(1/2)^({t}/{th})={n}")));
+        }
+        if try_name("beat_frequency") {
+            let f1 = param(&q, "f1")?;
+            let f2 = param(&q, "f2")?;
+            return Some(tag("beat_frequency", "formula", format!("beat_frequency: |{f1}-{f2}|={}", (f1 - f2).abs())));
+        }
+        if try_name("capacitance_parallel") {
+            let c1 = param(&q, "c1")?;
+            let c2 = param(&q, "c2")?;
+            return Some(tag("capacitance_parallel", "formula", format!("capacitance_parallel: C={c1}+{c2}={}", c1 + c2)));
+        }
+        if try_name("inductance_energy") {
+            let l = param(&q, "l").or_else(|| param(&q, "L"))?;
+            let i = param(&q, "i").or_else(|| param(&q, "current"))?;
+            return Some(tag("inductance_energy", "formula", format!("inductance_energy: E=½LI²=0.5·{l}·{i}²={}", 0.5 * l * i * i)));
+        }
+        if try_name("refractive_index") {
+            const C: f64 = 299_792_458.0;
+            let v = param(&q, "v").or_else(|| param(&q, "speed"))?;
+            if v <= 0.0 { return None; }
+            return Some(tag("refractive_index", "formula", format!("refractive_index: n=c/v={C}/{v}={}", C / v)));
+        }
+        if try_name("doppler_shift") {
+            let f = param(&q, "f").or_else(|| param(&q, "freq"))?;
+            let v = param(&q, "v").or_else(|| param(&q, "medium")).unwrap_or(343.0);
+            let vo = param(&q, "vo").unwrap_or(0.0);
+            let vs = param(&q, "vs").unwrap_or(0.0);
+            let den = v + vs;
+            if den == 0.0 { return None; }
+            let fp = f * (v + vo) / den;
+            return Some(tag("doppler_shift", "formula", format!("doppler_shift: f'={fp}")));
+        }
+        if try_name("coulomb_potential") {
+            const K: f64 = 8.987_551_792_3e9;
+            let qq = param(&q, "q")?;
+            let r = param(&q, "r")?;
+            if r == 0.0 { return None; }
+            return Some(tag("coulomb_potential", "formula", format!("coulomb_potential: V=kq/r={K}·{qq}/{r}={}", K * qq / r)));
+        }
+        if try_name("terminal_velocity") {
+            let m = param(&q, "m").or_else(|| param(&q, "mass"))?;
+            let g = param(&q, "g").unwrap_or(9.80665);
+            let rho = param(&q, "rho").or_else(|| param(&q, "density"))?;
+            let a = param(&q, "a").or_else(|| param(&q, "area"))?;
+            let cd = param(&q, "cd").or_else(|| param(&q, "drag")).unwrap_or(1.0);
+            let den = rho * a * cd;
+            if den <= 0.0 { return None; }
+            let v = (2.0 * m * g / den).sqrt();
+            return Some(tag("terminal_velocity", "formula", format!("terminal_velocity: v={v}")));
+        }
+        if try_name("orbit_velocity") {
+            let gm = param(&q, "gm").or_else(|| param(&q, "GM")).or_else(|| param(&q, "mu"))?;
+            let r = param(&q, "r").or_else(|| param(&q, "radius"))?;
+            if r <= 0.0 { return None; }
+            return Some(tag("orbit_velocity", "formula", format!("orbit_velocity: v=√(GM/r)={}", (gm / r).sqrt())));
+        }
+        if try_name("photon_momentum") {
+            const H: f64 = 6.626_070_15e-34;
+            let lam = param(&q, "lambda").or_else(|| param(&q, "l")).or_else(|| param(&q, "wavelength"))?;
+            if lam <= 0.0 { return None; }
+            return Some(tag("photon_momentum", "formula", format!("photon_momentum: p=h/λ={H}/{lam}={}", H / lam)));
+        }
+
         None
     }
 }
@@ -1153,6 +1404,247 @@ impl CatalogLookup {
                 return Some(tag("miles_to_km", "lookup", format!("km_to_miles: {km} km = {} mi", km / 1.609344)));
             }
         }
+
+        if try_name("template_fill") {
+            let tmpl = param_str(query, "template").or_else(|| param_str(query, "tmpl"))?;
+            let mut out = tmpl.to_string();
+            if let (Some(keys), Some(vals)) = (list_str(query, "keys"), list_str(query, "values")) {
+                if keys.len() != vals.len() {
+                    return Some(tag("template_fill", "lookup", "template_fill: refuse keys/values length mismatch".into()));
+                }
+                for (k, v) in keys.iter().zip(vals.iter()) {
+                    out = out.replace(&format!("{{{k}}}"), v);
+                }
+            }
+            for key in ["name", "id", "value", "user", "item"] {
+                if let Some(v) = param_str(query, key) {
+                    out = out.replace(&format!("{{{key}}}"), v);
+                }
+            }
+            if out.contains('{') && out.contains('}') {
+                return Some(tag(
+                    "template_fill",
+                    "lookup",
+                    format!("template_fill: REFUSE ungrounded slots remain in '{out}' — residual escalate only under allow_model+VoI"),
+                ));
+            }
+            return Some(tag("template_fill", "lookup", format!("template_fill: grounded '{out}'")));
+        }
+        if try_name("residual_policy") {
+            let voi = param(&q, "voi").unwrap_or(0.0);
+            let c_z = param(&q, "c_z").or_else(|| param(&q, "cz")).unwrap_or(0.0);
+            let allow = parse_bool_token(param_str(query, "allow_model").unwrap_or("false")).unwrap_or(false);
+            let decision = if c_z >= 1.0 {
+                "refuse_satiation"
+            } else if !allow || voi <= 0.0 {
+                "refuse_voi"
+            } else {
+                "escalate_model_last"
+            };
+            return Some(tag(
+                "residual_policy",
+                "lookup",
+                format!("residual_policy: decision={decision} (voi={voi}, c_z={c_z}, allow_model={allow}); Model LAST only on escalate; never launders Deterministic"),
+            ));
+        }
+        if try_name("base64_encode") {
+            let s = param_str(query, "s").or_else(|| param_str(query, "text")).or_else(|| param_str(query, "payload"))?;
+            return Some(tag("base64_encode", "lookup", format!("base64_encode: {}", b64_encode(s))));
+        }
+        if try_name("base64_decode") {
+            let s = param_str(query, "s").or_else(|| param_str(query, "text")).or_else(|| param_str(query, "payload"))?;
+            return match b64_decode(s) {
+                Some(t) => Some(tag("base64_decode", "lookup", format!("base64_decode: {t}"))),
+                None => Some(tag("base64_decode", "lookup", "base64_decode: refuse invalid".into())),
+            };
+        }
+        if try_name("url_encode") {
+            let s = param_str(query, "s").or_else(|| param_str(query, "text"))?;
+            let enc: String = s.bytes().map(|b| match b {
+                b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => (b as char).to_string(),
+                _ => format!("%{b:02X}"),
+            }).collect();
+            return Some(tag("url_encode", "lookup", format!("url_encode: {enc}")));
+        }
+        if try_name("is_email_shape") {
+            let s = param_str(query, "s").or_else(|| param_str(query, "email"))?;
+            let ok = s.contains('@') && s.contains('.') && !s.contains(' ') && s.len() >= 5;
+            return Some(tag("is_email_shape", "lookup", format!("is_email_shape: {ok}")));
+        }
+        if try_name("is_uuid_shape") {
+            let s = param_str(query, "s").or_else(|| param_str(query, "uuid"))?;
+            let parts: Vec<_> = s.split('-').collect();
+            let ok = parts.len() == 5
+                && parts[0].len() == 8
+                && parts[1].len() == 4
+                && parts[2].len() == 4
+                && parts[3].len() == 4
+                && parts[4].len() == 12
+                && s.chars().all(|c| c.is_ascii_hexdigit() || c == '-');
+            return Some(tag("is_uuid_shape", "lookup", format!("is_uuid_shape: {ok}")));
+        }
+        if try_name("weekday_from_ymd") {
+            let y = param(&q, "y").or_else(|| param(&q, "year"))? as i32;
+            let m = param(&q, "m").or_else(|| param(&q, "month"))? as i32;
+            let d = param(&q, "d").or_else(|| param(&q, "day"))? as i32;
+            let t = [0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4];
+            if !(1..=12).contains(&m) || !(1..=31).contains(&d) { return None; }
+            let mut yy = y;
+            if m < 3 { yy -= 1; }
+            let dow = (yy + yy / 4 - yy / 100 + yy / 400 + t[(m as usize) - 1] + d).rem_euclid(7);
+            let names = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+            return Some(tag("weekday_from_ymd", "lookup", format!("weekday_from_ymd: {}-{m:02}-{d:02} → {}", y, names[dow as usize])));
+        }
+        if try_name("month_name") {
+            let m = param(&q, "m").or_else(|| param(&q, "month"))? as usize;
+            let names = ["", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+            if m == 0 || m > 12 { return None; }
+            return Some(tag("month_name", "lookup", format!("month_name: {m} → {}", names[m])));
+        }
+        if try_name("liters_to_gallons") {
+            let l = param(&q, "l").or_else(|| param(&q, "liters"));
+            let g = param(&q, "gal").or_else(|| param(&q, "gallons"));
+            return match (l, g) {
+                (Some(l), None) => Some(tag("liters_to_gallons", "lookup", format!("liters_to_gallons: {l} L = {} gal", l / 3.785411784))),
+                (None, Some(g)) => Some(tag("liters_to_gallons", "lookup", format!("liters_to_gallons: {g} gal = {} L", g * 3.785411784))),
+                _ => None,
+            };
+        }
+        if try_name("watts_to_hp") {
+            let w = param(&q, "w").or_else(|| param(&q, "watts"));
+            let hp = param(&q, "hp");
+            return match (w, hp) {
+                (Some(w), None) => Some(tag("watts_to_hp", "lookup", format!("watts_to_hp: {w} W = {} hp", w / 745.6998715822702))),
+                (None, Some(hp)) => Some(tag("watts_to_hp", "lookup", format!("watts_to_hp: {hp} hp = {} W", hp * 745.6998715822702))),
+                _ => None,
+            };
+        }
+        if try_name("pascal_to_psi") {
+            let pa = param(&q, "pa").or_else(|| param(&q, "pascal"));
+            let psi = param(&q, "psi");
+            return match (pa, psi) {
+                (Some(pa), None) => Some(tag("pascal_to_psi", "lookup", format!("pascal_to_psi: {pa} Pa = {} psi", pa / 6894.757293168))),
+                (None, Some(psi)) => Some(tag("pascal_to_psi", "lookup", format!("pascal_to_psi: {psi} psi = {} Pa", psi * 6894.757293168))),
+                _ => None,
+            };
+        }
+        if try_name("str_is_numeric") {
+            let s = param_str(query, "s").or_else(|| param_str(query, "text"))?;
+            let ok = !s.is_empty() && s.chars().all(|c| c.is_ascii_digit() || c == '.' || c == '-' || c == '+');
+            return Some(tag("str_is_numeric", "lookup", format!("str_is_numeric: {ok}")));
+        }
+        if try_name("str_pad_left") {
+            let s = param_str(query, "s").or_else(|| param_str(query, "text"))?;
+            let n = param(&q, "n").or_else(|| param(&q, "width"))? as usize;
+            let pad = param_str(query, "pad").unwrap_or(" ");
+            let ch = pad.chars().next().unwrap_or(' ');
+            let mut out = s.to_string();
+            while out.chars().count() < n { out.insert(0, ch); }
+            return Some(tag("str_pad_left", "lookup", format!("str_pad_left: {out}")));
+        }
+        if try_name("str_repeat") {
+            let s = param_str(query, "s").or_else(|| param_str(query, "text"))?;
+            let n = param(&q, "n")? as usize;
+            if n > 10_000 { return None; }
+            return Some(tag("str_repeat", "lookup", format!("str_repeat: {}", s.repeat(n))));
+        }
+        if try_name("bit_count_ones") {
+            let x = param(&q, "x").or_else(|| param(&q, "a"))? as u64;
+            return Some(tag("bit_count_ones", "lookup", format!("bit_count_ones: {}", x.count_ones())));
+        }
+        if try_name("bit_rotate_left") {
+            let x = param(&q, "x").or_else(|| param(&q, "a"))? as u64;
+            let n = param(&q, "n").unwrap_or(1.0) as u32;
+            return Some(tag("bit_rotate_left", "lookup", format!("bit_rotate_left: 0x{:016x}", x.rotate_left(n))));
+        }
+        if try_name("crc16_ccitt") {
+            let s = param_str(query, "s").or_else(|| param_str(query, "payload"))?;
+            let mut crc: u16 = 0xFFFF;
+            for &b in s.as_bytes() {
+                crc ^= (b as u16) << 8;
+                for _ in 0..8 {
+                    if crc & 0x8000 != 0 { crc = (crc << 1) ^ 0x1021; } else { crc <<= 1; }
+                }
+            }
+            return Some(tag("crc16_ccitt", "lookup", format!("crc16_ccitt: 0x{crc:04x}")));
+        }
+        if try_name("isbn10_check") {
+            let s = param_str(query, "s").or_else(|| param_str(query, "isbn"))?;
+            let digits: Vec<char> = s.chars().filter(|c| c.is_ascii_digit() || *c == 'X' || *c == 'x').collect();
+            if digits.len() != 10 { return Some(tag("isbn10_check", "lookup", "isbn10_check: refuse len≠10".into())); }
+            let mut sum = 0i32;
+            for (i, c) in digits.iter().enumerate() {
+                let v = if *c == 'X' || *c == 'x' { 10 } else { c.to_digit(10).unwrap_or(0) as i32 };
+                sum += v * (10 - i as i32);
+            }
+            let ok = sum % 11 == 0;
+            return Some(tag("isbn10_check", "lookup", format!("isbn10_check: {ok}")));
+        }
+        if try_name("luhn_check") {
+            let s = param_str(query, "s").or_else(|| param_str(query, "pan")).or_else(|| param_str(query, "number"))?;
+            let digits: Vec<u32> = s.chars().filter(|c| c.is_ascii_digit()).filter_map(|c| c.to_digit(10)).collect();
+            if digits.len() < 2 { return None; }
+            let mut sum = 0u32;
+            let mut alt = false;
+            for &d in digits.iter().rev() {
+                let mut v = d;
+                if alt { v *= 2; if v > 9 { v -= 9; } }
+                sum += v;
+                alt = !alt;
+            }
+            let ok = sum % 10 == 0;
+            return Some(tag("luhn_check", "lookup", format!("luhn_check: {ok}")));
+        }
+        if try_name("http_method_ok") {
+            let m = param_str(query, "method").or_else(|| param_str(query, "m"))?.to_ascii_uppercase();
+            let ok = matches!(m.as_str(), "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS");
+            return Some(tag("http_method_ok", "lookup", format!("http_method_ok: {m} → {ok}")));
+        }
+        if try_name("port_well_known") {
+            let p = param(&q, "port").or_else(|| param(&q, "p"))? as u16;
+            let svc = match p {
+                20 | 21 => "ftp", 22 => "ssh", 25 => "smtp", 53 => "dns", 80 => "http",
+                110 => "pop3", 143 => "imap", 443 => "https", 5432 => "postgres", 6379 => "redis",
+                _ => "unknown",
+            };
+            return Some(tag("port_well_known", "lookup", format!("port_well_known: {p} → {svc}")));
+        }
+        if try_name("path_dirname") {
+            let p = param_str(query, "path").or_else(|| param_str(query, "p"))?;
+            let dir = if let Some(i) = p.rfind('/') { if i == 0 { "/" } else { &p[..i] } } else { "." };
+            return Some(tag("path_dirname", "lookup", format!("path_dirname: {dir}")));
+        }
+        if try_name("mime_charset_utf8") {
+            let mime = param_str(query, "mime").or_else(|| param_str(query, "type")).unwrap_or("text/plain");
+            return Some(tag("mime_charset_utf8", "lookup", format!("mime_charset_utf8: {mime}; charset=utf-8")));
+        }
+        if try_name("zone_from_tier") {
+            let t = param_str(query, "tier").or_else(|| param_str(query, "t"))?.to_ascii_lowercase();
+            let z = match t.as_str() {
+                "lookup" | "formula" | "solver" | "settle" => "Z1",
+                "compose" | "retrieve" | "cite" => "Z2",
+                "model" | "generative" => "Z3",
+                _ => "Z?",
+            };
+            return Some(tag("zone_from_tier", "lookup", format!("zone_from_tier: {t} → {z}")));
+        }
+        if try_name("estimate_kind_label") {
+            let k = param_str(query, "kind").or_else(|| param_str(query, "k"))?.to_ascii_lowercase();
+            let label = match k.as_str() {
+                "catalog" | "mu_catalog" | "tier0" => "Estimated",
+                "metered" | "rapl" | "nvml" | "smc" => "Metered",
+                "unavailable" | "none" => "Unmetered",
+                _ => "Estimated",
+            };
+            return Some(tag("estimate_kind_label", "lookup", format!("estimate_kind_label: {k} → {label}")));
+        }
+        if try_name("cite_style_apa") {
+            let author = param_str(query, "author").unwrap_or("Unknown");
+            let year = param_str(query, "year").unwrap_or("n.d.");
+            let title = param_str(query, "title").unwrap_or("Untitled");
+            return Some(tag("cite_style_apa", "lookup", format!("cite_style_apa: {author} ({year}). {title}.")));
+        }
+
         None
     }
 }
@@ -1746,6 +2238,303 @@ impl CatalogSolver {
             return Some(tag("set_symmetric_diff", "solver", format!("set_symmetric_diff: {out:?}")));
         }
 
+
+        if try_name("cumsum_f64") {
+            let xs = list_f64(&q, "xs").or_else(|| list_f64(&q, "a"))?;
+            let mut acc = 0.0;
+            let out: Vec<f64> = xs.into_iter().map(|x| { acc += x; acc }).collect();
+            return Some(tag("cumsum_f64", "solver", format!("cumsum_f64: {out:?}")));
+        }
+        if try_name("cumprod_f64") {
+            let xs = list_f64(&q, "xs").or_else(|| list_f64(&q, "a"))?;
+            let mut acc = 1.0;
+            let out: Vec<f64> = xs.into_iter().map(|x| { acc *= x; acc }).collect();
+            return Some(tag("cumprod_f64", "solver", format!("cumprod_f64: {out:?}")));
+        }
+        if try_name("percentile_f64") {
+            let mut xs = list_f64(&q, "xs").or_else(|| list_f64(&q, "a"))?;
+            let p = param(&q, "p").or_else(|| param(&q, "pct")).unwrap_or(50.0);
+            if xs.is_empty() || !(0.0..=100.0).contains(&p) { return None; }
+            xs.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+            let k = ((p / 100.0) * (xs.len() as f64 - 1.0)).round() as usize;
+            let v = xs[k.min(xs.len() - 1)];
+            return Some(tag("percentile_f64", "solver", format!("percentile_f64: p{p}={v}")));
+        }
+        if try_name("zscore_f64") {
+            let xs = list_f64(&q, "xs").or_else(|| list_f64(&q, "a"))?;
+            let x = param(&q, "x")?;
+            if xs.len() < 2 { return None; }
+            let mean = xs.iter().sum::<f64>() / xs.len() as f64;
+            let var = xs.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / xs.len() as f64;
+            let sd = var.sqrt();
+            if sd == 0.0 { return None; }
+            return Some(tag("zscore_f64", "solver", format!("zscore_f64: z=({x}-{mean})/{sd}={}", (x - mean) / sd)));
+        }
+        if try_name("matmul_vec_2") {
+            let a = param(&q, "a")?; let b = param(&q, "b")?;
+            let c = param(&q, "c")?; let d = param(&q, "d")?;
+            let x = param(&q, "x")?; let y = param(&q, "y")?;
+            return Some(tag("matmul_vec_2", "solver", format!("matmul_vec_2: [{}, {}]", a * x + b * y, c * x + d * y)));
+        }
+        if try_name("norm_inf") {
+            let xs = list_f64(&q, "xs").or_else(|| list_f64(&q, "a"))?;
+            let m = xs.iter().map(|v| v.abs()).fold(0.0_f64, f64::max);
+            return Some(tag("norm_inf", "solver", format!("norm_inf: {m}")));
+        }
+        if try_name("angle_between_2d") {
+            let x1 = param(&q, "x1")?; let y1 = param(&q, "y1")?;
+            let x2 = param(&q, "x2")?; let y2 = param(&q, "y2")?;
+            let n1 = (x1 * x1 + y1 * y1).sqrt();
+            let n2 = (x2 * x2 + y2 * y2).sqrt();
+            if n1 == 0.0 || n2 == 0.0 { return None; }
+            let cos = ((x1 * x2 + y1 * y2) / (n1 * n2)).clamp(-1.0, 1.0);
+            let ang = cos.acos().to_degrees();
+            return Some(tag("angle_between_2d", "solver", format!("angle_between_2d: {ang} deg")));
+        }
+        if try_name("polygon_area") {
+            let pts = list_f64(&q, "pts").or_else(|| list_f64(&q, "xy"))?;
+            if pts.len() < 6 || pts.len() % 2 != 0 { return None; }
+            let n = pts.len() / 2;
+            let mut area = 0.0;
+            for i in 0..n {
+                let j = (i + 1) % n;
+                area += pts[2 * i] * pts[2 * j + 1];
+                area -= pts[2 * j] * pts[2 * i + 1];
+            }
+            area = area.abs() / 2.0;
+            return Some(tag("polygon_area", "solver", format!("polygon_area: {area}")));
+        }
+        if try_name("edit_script_len") {
+            let a = param_str(query, "a").or_else(|| param_str(query, "s1"))?;
+            let b = param_str(query, "b").or_else(|| param_str(query, "s2"))?;
+            let aa: Vec<char> = a.chars().collect();
+            let bb: Vec<char> = b.chars().collect();
+            let mut dp = vec![vec![0usize; bb.len() + 1]; aa.len() + 1];
+            for i in 0..=aa.len() { dp[i][0] = i; }
+            for j in 0..=bb.len() { dp[0][j] = j; }
+            for i in 1..=aa.len() {
+                for j in 1..=bb.len() {
+                    let cost = if aa[i - 1] == bb[j - 1] { 0 } else { 1 };
+                    dp[i][j] = (dp[i - 1][j] + 1).min(dp[i][j - 1] + 1).min(dp[i - 1][j - 1] + cost);
+                }
+            }
+            return Some(tag("edit_script_len", "solver", format!("edit_script_len: {}", dp[aa.len()][bb.len()])));
+        }
+        if try_name("longest_run") {
+            let s = param_str(query, "s").or_else(|| param_str(query, "text"))?;
+            let mut best = 0usize;
+            let mut cur = 0usize;
+            let mut prev: Option<char> = None;
+            for c in s.chars() {
+                if Some(c) == prev { cur += 1; } else { cur = 1; prev = Some(c); }
+                best = best.max(cur);
+            }
+            return Some(tag("longest_run", "solver", format!("longest_run: {best}")));
+        }
+        if try_name("rle_decode") {
+            let counts = list_f64(&q, "counts").or_else(|| list_f64(&q, "n"))?;
+            let chars = list_str(query, "chars").or_else(|| list_str(query, "c"))?;
+            if counts.len() != chars.len() { return None; }
+            let mut out = String::new();
+            for (n, ch) in counts.iter().zip(chars.iter()) {
+                let k = (*n as usize).min(10_000);
+                let c = ch.chars().next().unwrap_or('?');
+                out.extend(std::iter::repeat(c).take(k));
+            }
+            return Some(tag("rle_decode", "solver", format!("rle_decode: {out}")));
+        }
+        if try_name("top_k_f64") {
+            let mut xs = list_f64(&q, "xs").or_else(|| list_f64(&q, "a"))?;
+            let k = param(&q, "k").unwrap_or(3.0) as usize;
+            xs.sort_by(|a, b| b.partial_cmp(a).unwrap_or(std::cmp::Ordering::Equal));
+            xs.truncate(k.min(xs.len()));
+            return Some(tag("top_k_f64", "solver", format!("top_k_f64: {xs:?}")));
+        }
+        if try_name("argsort_f64") {
+            let xs = list_f64(&q, "xs").or_else(|| list_f64(&q, "a"))?;
+            let mut idx: Vec<usize> = (0..xs.len()).collect();
+            idx.sort_by(|&i, &j| xs[i].partial_cmp(&xs[j]).unwrap_or(std::cmp::Ordering::Equal));
+            return Some(tag("argsort_f64", "solver", format!("argsort_f64: {idx:?}")));
+        }
+        if try_name("is_palindrome") {
+            let s = param_str(query, "s").or_else(|| param_str(query, "text"))?;
+            let chars: Vec<char> = s.chars().filter(|c| !c.is_whitespace()).collect();
+            let ok = chars.iter().eq(chars.iter().rev());
+            return Some(tag("is_palindrome", "solver", format!("is_palindrome: {ok}")));
+        }
+        if try_name("anagram_check") {
+            let a = param_str(query, "a")?;
+            let b = param_str(query, "b")?;
+            let mut aa: Vec<char> = a.chars().filter(|c| !c.is_whitespace()).map(|c| c.to_ascii_lowercase()).collect();
+            let mut bb: Vec<char> = b.chars().filter(|c| !c.is_whitespace()).map(|c| c.to_ascii_lowercase()).collect();
+            aa.sort_unstable(); bb.sort_unstable();
+            return Some(tag("anagram_check", "solver", format!("anagram_check: {}", aa == bb)));
+        }
+        if try_name("set_issubset") {
+            let a: BTreeSet<_> = list_str(query, "a")?.into_iter().collect();
+            let b: BTreeSet<_> = list_str(query, "b")?.into_iter().collect();
+            return Some(tag("set_issubset", "solver", format!("set_issubset: {}", a.is_subset(&b))));
+        }
+        if try_name("set_cardinality") {
+            let a: BTreeSet<_> = list_str(query, "a").or_else(|| list_str(query, "set"))?.into_iter().collect();
+            return Some(tag("set_cardinality", "solver", format!("set_cardinality: {}", a.len())));
+        }
+        if try_name("power_set_size") {
+            let a: BTreeSet<_> = list_str(query, "a").or_else(|| list_str(query, "set"))?.into_iter().collect();
+            if a.len() > 20 { return None; }
+            return Some(tag("power_set_size", "solver", format!("power_set_size: {}", 1u64 << a.len())));
+        }
+        if try_name("dijkstra_tiny") {
+            let edges = list_f64(&q, "edges")?;
+            let start = param(&q, "start").or_else(|| param(&q, "s"))? as i64;
+            let goal = param(&q, "goal").or_else(|| param(&q, "g")).or_else(|| param(&q, "t"))? as i64;
+            let mut adj: std::collections::BTreeMap<i64, Vec<(i64, f64)>> = std::collections::BTreeMap::new();
+            for chunk in edges.chunks(3) {
+                if chunk.len() < 3 { break; }
+                adj.entry(chunk[0] as i64).or_default().push((chunk[1] as i64, chunk[2]));
+            }
+            let mut dist: std::collections::BTreeMap<i64, f64> = std::collections::BTreeMap::new();
+            dist.insert(start, 0.0);
+            let mut visited = BTreeSet::new();
+            for _ in 0..64 {
+                let mut best: Option<(i64, f64)> = None;
+                for (&n, &d) in &dist {
+                    if visited.contains(&n) { continue; }
+                    if best.map(|(_, bd)| d < bd).unwrap_or(true) { best = Some((n, d)); }
+                }
+                let Some((u, du)) = best else { break; };
+                if u == goal {
+                    return Some(tag("dijkstra_tiny", "solver", format!("dijkstra_tiny: dist={du}")));
+                }
+                visited.insert(u);
+                if let Some(nei) = adj.get(&u) {
+                    for &(v, w) in nei {
+                        let nd = du + w;
+                        let cur = dist.get(&v).copied().unwrap_or(f64::INFINITY);
+                        if nd < cur { dist.insert(v, nd); }
+                    }
+                }
+            }
+            return Some(tag("dijkstra_tiny", "solver", format!("dijkstra_tiny: unreachable {start}→{goal}")));
+        }
+        if try_name("topo_sort_tiny") {
+            let edges = list_f64(&q, "edges")?;
+            let mut indeg: std::collections::BTreeMap<i64, i32> = std::collections::BTreeMap::new();
+            let mut adj: std::collections::BTreeMap<i64, Vec<i64>> = std::collections::BTreeMap::new();
+            for chunk in edges.chunks(2) {
+                if chunk.len() < 2 { break; }
+                let u = chunk[0] as i64; let v = chunk[1] as i64;
+                adj.entry(u).or_default().push(v);
+                indeg.entry(v).or_default();
+                indeg.entry(u).or_default();
+                *indeg.entry(v).or_default() += 1;
+            }
+            let mut q: VecDeque<i64> = indeg.iter().filter(|(_, d)| **d == 0).map(|(&n, _)| n).collect();
+            let mut out = Vec::new();
+            while let Some(u) = q.pop_front() {
+                out.push(u);
+                if let Some(nei) = adj.get(&u) {
+                    for &v in nei {
+                        if let Some(d) = indeg.get_mut(&v) {
+                            *d -= 1;
+                            if *d == 0 { q.push_back(v); }
+                        }
+                    }
+                }
+            }
+            if out.len() != indeg.len() {
+                return Some(tag("topo_sort_tiny", "solver", "topo_sort_tiny: refuse cycle".into()));
+            }
+            return Some(tag("topo_sort_tiny", "solver", format!("topo_sort_tiny: {out:?}")));
+        }
+        if try_name("binary_gcd_steps") {
+            let mut a = param(&q, "a")? as u64;
+            let mut b = param(&q, "b")? as u64;
+            let mut steps = 0u64;
+            while a != 0 && b != 0 {
+                steps += 1;
+                if a > b { a %= b; } else { b %= a; }
+                if steps > 10_000 { break; }
+            }
+            return Some(tag("binary_gcd_steps", "solver", format!("binary_gcd_steps: steps={steps} gcd={}", a | b)));
+        }
+        if try_name("mod_pow_u64") {
+            let mut base = param(&q, "base").or_else(|| param(&q, "a"))? as u128;
+            let mut exp = param(&q, "exp").or_else(|| param(&q, "e"))? as u64;
+            let m = param(&q, "mod").or_else(|| param(&q, "m"))? as u128;
+            if m == 0 { return None; }
+            let mut r: u128 = 1;
+            base %= m;
+            while exp > 0 {
+                if exp & 1 == 1 { r = (r * base) % m; }
+                base = (base * base) % m;
+                exp >>= 1;
+            }
+            return Some(tag("mod_pow_u64", "solver", format!("mod_pow_u64: {r}")));
+        }
+        if try_name("chinese_remainder_2") {
+            let a1 = param(&q, "a1")? as i64;
+            let n1 = param(&q, "n1")? as i64;
+            let a2 = param(&q, "a2")? as i64;
+            let n2 = param(&q, "n2")? as i64;
+            if n1 <= 0 || n2 <= 0 { return None; }
+            let g = { let mut x=n1.abs(); let mut y=n2.abs(); while y!=0 { let t=x%y; x=y; y=t;} x };
+            if g != 1 { return Some(tag("chinese_remainder_2", "solver", "chinese_remainder_2: refuse non-coprime".into())); }
+            let mut inv = 0i64; let mut b = 1i64;
+            let (mut aa, mut mm) = (n1.rem_euclid(n2), n2);
+            while aa > 1 {
+                let q = aa / mm;
+                let t = mm; mm = aa % mm; aa = t;
+                let t = inv; inv = b - q * inv; b = t;
+            }
+            if inv < 0 { inv += n2; }
+            let x = a1 + n1 * ((a2 - a1).rem_euclid(n2) * inv).rem_euclid(n2);
+            return Some(tag("chinese_remainder_2", "solver", format!("chinese_remainder_2: x≡{x} (mod {})", n1 * n2)));
+        }
+        if try_name("interval_union_len") {
+            let pts = list_f64(&q, "intervals").or_else(|| list_f64(&q, "iv"))?;
+            if pts.len() % 2 != 0 || pts.is_empty() { return None; }
+            let mut iv: Vec<(f64, f64)> = pts.chunks(2).map(|c| (c[0].min(c[1]), c[0].max(c[1]))).collect();
+            iv.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+            let mut cur_s = iv[0].0; let mut cur_e = iv[0].1; let mut total = 0.0;
+            for &(s, e) in iv.iter().skip(1) {
+                if s <= cur_e { cur_e = cur_e.max(e); }
+                else { total += cur_e - cur_s; cur_s = s; cur_e = e; }
+            }
+            total += cur_e - cur_s;
+            return Some(tag("interval_union_len", "solver", format!("interval_union_len: {total}")));
+        }
+        if try_name("knapsack_unbounded_tiny") {
+            let wts = list_f64(&q, "weights").or_else(|| list_f64(&q, "w"))?;
+            let vals = list_f64(&q, "values").or_else(|| list_f64(&q, "v"))?;
+            let cap = param(&q, "cap").or_else(|| param(&q, "capacity"))? as usize;
+            if wts.len() != vals.len() || wts.len() > 6 || cap > 200 { return None; }
+            let mut dp = vec![0.0; cap + 1];
+            for c in 0..=cap {
+                for i in 0..wts.len() {
+                    let w = wts[i] as usize;
+                    if w <= c { let cand = dp[c - w] + vals[i]; if cand > dp[c] { dp[c] = cand; } }
+                }
+            }
+            return Some(tag("knapsack_unbounded_tiny", "solver", format!("knapsack_unbounded_tiny: max={}", dp[cap])));
+        }
+        if try_name("linear_interp_table") {
+            let xs = list_f64(&q, "xs")?;
+            let ys = list_f64(&q, "ys")?;
+            let x = param(&q, "x")?;
+            if xs.len() != ys.len() || xs.len() < 2 { return None; }
+            if x <= xs[0] { return Some(tag("linear_interp_table", "solver", format!("linear_interp_table: {}", ys[0]))); }
+            if x >= xs[xs.len()-1] { return Some(tag("linear_interp_table", "solver", format!("linear_interp_table: {}", ys[ys.len()-1]))); }
+            for i in 0..xs.len()-1 {
+                if x >= xs[i] && x <= xs[i+1] {
+                    let t = (x - xs[i]) / (xs[i+1] - xs[i]);
+                    let y = ys[i] * (1.0 - t) + ys[i+1] * t;
+                    return Some(tag("linear_interp_table", "solver", format!("linear_interp_table: {y}")));
+                }
+            }
+            return None;
+        }
+
         None
     }
 }
@@ -1801,7 +2590,7 @@ mod tests {
     #[test]
     fn live_counts_match_stack() {
         let s = PeriodicStack::subset();
-        assert!(s.live_gear_count() >= 170);
+        assert!(s.live_gear_count() >= 250);
         assert!(s.scale_note().contains("live catalog"));
     }
 }

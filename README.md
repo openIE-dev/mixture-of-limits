@@ -111,11 +111,11 @@ cargo run -p mol-cli -- prove
 
 Optional `fabric-detect` (wgpu) and `energy-meter`/`os-meter` (Linux RAPL/powercap; Tier-1 NVML via `nvidia-smi` power.draw×window or energy.consumed delta; macOS IOReport rails + SMC PSTR package, or root powermetrics) are feature-gated. Soft-ref prove keeps `measured_j=None`. A failed or VM probe stays `unavailable` and never invents numbers (utilization % never becomes joules). See `mol meter` and product acceptance A13. Details: [docs/tier1-os-meters.md](./docs/tier1-os-meters.md).
 
-Live silicon / RAPL / Ferric EFA hardware / klere-vm FPGA / openie-path / WCA MCP / remaining ~78/258 thesis primitives are **OUT OF PROOF SCOPE**. In-tree Periodic Stack **live catalog** (~180 Present / ≥170 live Lookup·Formula·Solver gears + Gap markers) + registry `primitive_gap` + soft-ref **multi-fabric routing** (`mol-core::fabric`) are **in proof**. Ferric (github.com/dcharlot-physicalai-bmi/ferric) is reference semantics only — not path-dep'd.
+Live silicon / RAPL / Ferric EFA hardware / klere-vm FPGA / openie-path / WCA MCP / μ calib corpus + HW Gaps are **OUT OF PROOF SCOPE**. In-tree Periodic Stack **live catalog** (258 Present / 258 live Lookup·Formula·Solver·Navigate gears + honest Gap markers) + registry `primitive_gap` + soft-ref **multi-fabric routing** (`mol-core::fabric`) are **in proof**. Ferric (github.com/dcharlot-physicalai-bmi/ferric) is reference semantics only — not path-dep'd.
 
 ## Gaps still stub
 
-Live `openie-path` ask, WCA MCP, Ferric/on-device EFA certificate, klere-vm/FPGA meter, remaining ~78/258 thesis primitives + μ calib corpus. Default build ships growing live catalog (180 Present / 179 live gears; honest counts in `scale_note` / `mol prove`).
+Live `openie-path` ask, WCA MCP, Ferric/on-device EFA certificate, klere-vm/FPGA meter, μ calib corpus + HW Gaps. Default build ships full soft-ref live catalog (258 Present / 258 live gears; honest Gaps; counts in `scale_note` / `mol prove`).
 
 ---
 

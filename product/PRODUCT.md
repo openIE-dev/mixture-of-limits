@@ -50,7 +50,7 @@ Cited already in OpenIE research triad (NI + Satiation papers): System One = typ
 - Not inventing `measured_j` from catalog Landauer or OpCounter estimates.
 - Not inventing Arena/JevBench composite scores as MoL scores; System One remains Model LAST for closed menus after floors miss — and still faces `mol arena` close-law scoring.
 - Live WCA **MCP network** / Ferric robot EFA / klere-vm FPGA Stage C package meters remain out of soft-ref prove (in-crate NI certify + Stage C unmetered **are** in prove).
-- Remaining ~78/258 Periodic Stack thesis primitives still residual (live catalog ≥170 gears in prove; counts honest in scale_note).
+- μ calib corpus + HW Gaps still residual (live catalog 258 Present / 258 live gears in prove; honest Gaps; counts in scale_note). estimates≠measured_j; stage_c_measured=false until meters.
 - Not a new consumer brand name without explicit approval (see name table).
 
 ## Physics-informed voice (lock)

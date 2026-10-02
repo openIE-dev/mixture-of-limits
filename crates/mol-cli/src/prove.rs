@@ -213,7 +213,7 @@ pub fn run_prove() -> bool {
         let failed = results.iter().filter(|c| !c.ok).count();
         println!("PROVE RESULT: FAILED ({failed}/{})", results.len());
     }
-    println!("OUT OF PROOF SCOPE: Ferric/MuJoCo robot EFA hardware, FPGA Stage C / wca-lut-edge in-proc + board meters (stage_c_measured=false), klere-vm package meters, System One pre-gate, remaining ~78 of 258 thesis primitives (live catalog in proof; honest Gaps retained), live nvidia-smi on hosts without NVIDIA (feature energy-meter still honest-unavailable). Live NI/WCA HTTP|MCP certify is in-tree (env-gated; in-crate fallback).");
+    println!("OUT OF PROOF SCOPE: Ferric/MuJoCo robot EFA hardware, FPGA Stage C / wca-lut-edge in-proc + board meters (stage_c_measured=false), klere-vm package meters, System One pre-gate, μ calib corpus + HW Gaps (physical_settle/reversible/ising/adiabatic/ferric/quantum/analog/photonic; live catalog 258 Present in proof; honest Gaps retained), live nvidia-smi on hosts without NVIDIA (feature energy-meter still honest-unavailable). Live NI/WCA HTTP|MCP certify is in-tree (env-gated; in-crate fallback).");
     println!("IN PROOF (product gaps): live NI cert ids (in-crate + HTTP|MCP prefer_env fallback), Residual Model LAST (+ optional endpoint fail-closed), Stage C soft-ref inventory (stage_c_measured=false), durable EpisodeStore C(z), mol bench Estimated|Metered, mol arena head-on, phase1 rule AST, distill v1, Tier-1 RAPL/NVML/macOS-SMC meter honesty + Tier-2 StubShuntHal");
     all_ok
 }
@@ -472,7 +472,7 @@ fn criterion_replay_coercion() -> Criterion {
 fn criterion_live_catalog_gears(mol: &MixtureOfLimits) -> Criterion {
     let name = "live_catalog_gears";
     let stack = PeriodicStack::subset();
-    if stack.live_gear_count() < 170 {
+    if stack.live_gear_count() < 250 {
         return Criterion::fail(name, format!("live_gear_count={}", stack.live_gear_count()));
     }
     // Sample live closes at the declared gear (not placeholders).
@@ -495,6 +495,14 @@ fn criterion_live_catalog_gears(mol: &MixtureOfLimits) -> Criterion {
         ("bmi_formula kg=70 height=1.75", CascadeTier::Formula, "bmi"),
         ("set_symmetric_diff a=[1,2,3] b=[3,4]", CascadeTier::Solver, "set_symmetric"),
         ("miles_to_km mi=1", CascadeTier::Lookup, "miles_to_km"),
+        ("sqrt_f64 x=9", CascadeTier::Formula, "sqrt_f64"),
+        ("template_fill template=hi_{name} name=Ada", CascadeTier::Lookup, "template_fill"),
+        ("residual_policy voi=0 allow_model=false c_z=0", CascadeTier::Lookup, "residual_policy"),
+        ("base64_encode s=hi", CascadeTier::Lookup, "base64_encode"),
+        ("cumsum_f64 xs=[1,2,3]", CascadeTier::Solver, "cumsum_f64"),
+        ("orbit_velocity gm=398600.4418 r=6371", CascadeTier::Formula, "orbit_velocity"),
+        ("luhn_check s=4111111111111111", CascadeTier::Lookup, "luhn_check"),
+        ("mod_pow_u64 base=2 exp=10 mod=1000", CascadeTier::Solver, "mod_pow_u64"),
     ];
     for (q, expect_tier, needle) in samples {
         let out = match close(mol, q, Budget::coin_cell()) {
@@ -531,10 +539,20 @@ fn criterion_live_catalog_gears(mol: &MixtureOfLimits) -> Criterion {
             return Criterion::fail(name, "must not invent measured_j on catalog closes");
         }
     }
+    if stack.remaining_to_full() != 0 || stack.placeholder_present_count() != 0 {
+        return Criterion::fail(
+            name,
+            format!(
+                "expected full 258 Present live catalog with 0 placeholders; remain={} placeholders={}",
+                stack.remaining_to_full(),
+                stack.placeholder_present_count()
+            ),
+        );
+    }
     Criterion::verified(
         name,
         format!(
-            "live catalog closes Lookup/Formula/Solver samples; {} live gears / {} present / {} toward 258; placeholders={}; estimates≠measured_j",
+            "live catalog closes Lookup/Formula/Solver samples; {} live gears / {} present / {} toward 258; placeholders={}; estimates≠measured_j; residual_policy+template_fill live",
             stack.live_gear_count(),
             stack.present_count(),
             stack.remaining_to_full(),
@@ -546,7 +564,7 @@ fn criterion_live_catalog_gears(mol: &MixtureOfLimits) -> Criterion {
 fn criterion_stack_navigation(mol: &MixtureOfLimits) -> Criterion {
     let name = "stack_navigation";
     let stack = PeriodicStack::subset();
-    if stack.present_count() < 170 || stack.gap_count() < 5 {
+    if stack.present_count() < 250 || stack.gap_count() < 5 {
         return Criterion::fail(
             name,
             format!(
@@ -557,7 +575,7 @@ fn criterion_stack_navigation(mol: &MixtureOfLimits) -> Criterion {
             ),
         );
     }
-    if stack.live_gear_count() < 170 {
+    if stack.live_gear_count() < 250 {
         return Criterion::fail(
             name,
             format!(
