@@ -320,7 +320,7 @@ impl PeriodicStack {
     /// Scale note vs full thesis table.
     pub fn scale_note(&self) -> String {
         format!(
-            "Periodic Stack live catalog: {} families (all {});              {} seeded ({} present, {} gap); {} live Lookup/Formula/Solver/Navigate gears              ({} placeholder Present; {} toward 258 remain).              Full thesis: {} primitives / {} families (compute.openie.dev).              Live ≠ full 258; Gap cells refuse via primitive_gap; estimates≠measured_j.",
+            "Periodic Stack live catalog: {} families (all {});              {} seeded ({} present, {} gap); {} live Lookup/Formula/Solver/Navigate gears              ({} placeholder Present; {} toward 258 remain).              Full thesis: {} primitives / {} families (compute.openie.dev).              Present live gears close soft-ref; Gap cells refuse via primitive_gap; estimates≠measured_j; stage_c_measured=false until meters.",
             FULL_TARGET_FAMILIES,
             FULL_TARGET_FAMILIES,
             self.seeded_count(),
@@ -681,7 +681,7 @@ macro_rules! cell {
 
 /// Live catalog + honest Gaps: Present cells with GearKind::Lookup|Formula|Solver|Navigate
 /// are executable soft-ref entries (not placeholders). GearKind::None = name-only.
-/// Thesis target remains 258/33 (compute.openie.dev); this ships a growing live subset.
+/// Thesis target 258/33 (compute.openie.dev); soft-ref ships 258 Present live gears + honest Gaps.
 const SUBSET_CELLS: &[StackPrimitive] = &[
     cell!(1, "add_f64", Arithmetic, L0, Present, Formula, 5e-12, "IEEE-754 add a+b (Formula)"),
     cell!(2, "landauer_bit", Arithmetic, L0, Present, Formula, 1e-12, "Landauer E_min = k_B T ln2 (Formula)"),
